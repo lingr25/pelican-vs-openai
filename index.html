@@ -607,6 +607,7 @@ function gameOver(){
 function finishOver(){
   stopBGM();
   state = "over"; overT = 0;
+  const isPB = saveRecords(progress, elapsed, grazes, false);
   document.getElementById("overReason").textContent = FAILS[Math.floor(Math.random()*FAILS.length)];
   document.getElementById("overStats").innerHTML = statsHTML(isPB);
   show("over");
@@ -614,6 +615,7 @@ function finishOver(){
 function winGame(){
   stopBGM();
   state = "win"; winT = 0;
+  const isPB = saveRecords(1, elapsed, grazes, true);
   document.getElementById("winStats").innerHTML = statsHTML(isPB);
   show("win");
   beep(523, .12, "square", .07); setTimeout(()=>beep(659, .12, "square", .07), 130);
@@ -912,6 +914,7 @@ function update(dt){
         floats.push({x: p.x, y: p.y - 20, txt: "+5% 并发燃烧！", t: 0, life: 1.3, color: "#5ef2ff"});
         burst(p.x, p.y, "#5ef2ff", 16);
         beep(660, 0.1, "sine", 0.07, 990); setTimeout(()=>beep(990, 0.12, "sine", 0.05, 1320), 70);
+        if (progress >= 1){ progress = 1; updateHUD(true); winGame(); return; }
       }
       updateHUD(true);
     }
