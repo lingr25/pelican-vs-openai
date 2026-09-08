@@ -30,7 +30,42 @@
     box-shadow:0 0 12px rgba(255,209,102,.55);transition:width .15s linear}
   #stats{display:flex;gap:14px;white-space:nowrap;color:#9fb4d8;font-variant-numeric:tabular-nums}
   #stats b{color:#fff;font-weight:600}
-
+  #energyBox{display:flex;flex-direction:column;min-width:130px}
+  #energyBox .lab{display:flex;justify-content:space-between;font-size:11px;color:#9fb4d8;margin-bottom:4px}
+  #energyBox .lab b{color:var(--cyan);font-variant-numeric:tabular-nums}
+  #energyBar{height:12px;border:1px solid var(--line);border-radius:99px;background:rgba(255,255,255,.05);overflow:hidden;position:relative}
+  #energyFill{height:100%;width:0%;border-radius:99px;background:linear-gradient(90deg,#0099ff,#5ef2ff);
+    box-shadow:0 0 10px rgba(94,242,255,.5);transition:width .12s ease}
+  #energyBar.ready #energyFill{background:linear-gradient(90deg,#5ef2ff,#fff,#5ef2ff);
+    box-shadow:0 0 16px rgba(94,242,255,.9);animation:pulse-energy 1s infinite alternate}
+  @keyframes pulse-energy{0%{opacity:.85}100%{opacity:1;filter:drop-shadow(0 0 6px #fff)}}
+  .touch-bomb{position:fixed;right:22px;bottom:26px;width:74px;height:74px;border-radius:50%;
+    border:2px solid rgba(94,242,255,.25);background:rgba(10,18,36,.88);color:#6f86ad;
+    font-size:11px;font-weight:700;line-height:1.25;cursor:pointer;z-index:15;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    user-select:none;touch-action:manipulation;transition:transform .12s,box-shadow .2s,border-color .2s;
+    box-shadow:0 6px 20px rgba(0,0,0,.5);backdrop-filter:blur(6px)}
+  .touch-bomb.ready{border-color:var(--cyan);color:#031018;background:linear-gradient(180deg,#8be9ff,#39c6e8);
+    box-shadow:0 0 24px rgba(94,242,255,.8);animation:pulse-bomb 1.2s infinite ease-in-out}
+  .touch-bomb:active{transform:scale(.92)}
+  @keyframes pulse-bomb{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
+  #toast{position:fixed;bottom:36px;left:50%;transform:translateX(-50%);
+    background:rgba(12,18,38,.96);border:1px solid var(--cyan);border-radius:99px;
+    color:#eafbff;padding:10px 24px;font-size:13px;font-weight:600;letter-spacing:1px;
+    box-shadow:0 6px 30px rgba(0,0,0,.6),0 0 20px rgba(94,242,255,.3);
+    z-index:99;opacity:0;pointer-events:none;transition:opacity .25s,transform .25s}
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(-8px)}
+  .btn.sec{background:transparent;border:1px solid rgba(94,242,255,.45);color:#c2d8f8;
+    padding:11px 26px;font-size:14px;letter-spacing:1px}
+  .btn.sec:hover{background:rgba(94,242,255,.12);color:#fff;box-shadow:0 4px 18px rgba(94,242,255,.25)}
+  .btn-row{display:flex;align-items:center;justify-content:center;gap:12px;margin-top:6px;flex-wrap:wrap}
+  .best-bar{margin:10px auto 14px;padding:8px 16px;background:rgba(94,242,255,.06);
+    border:1px dashed rgba(94,242,255,.25);border-radius:10px;font-size:12px;color:#9eb5dc;
+    display:inline-block}
+  .best-bar b{color:var(--gold)}
+  .pb-badge{display:inline-block;padding:2px 8px;border-radius:6px;background:linear-gradient(90deg,#ff5d73,#ff9f43);
+    color:#fff;font-size:11px;font-weight:700;margin-left:6px;vertical-align:middle;
+    box-shadow:0 0 10px rgba(255,93,115,.5)}
   /* ---------- overlays ---------- */
   .ovl{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
     z-index:10;background:radial-gradient(ellipse at center,rgba(5,8,18,.25),rgba(3,4,10,.88) 75%)}
@@ -68,12 +103,20 @@
     <div class="lab"><span>5 小时额度消耗进度</span><b><span id="pct">0.0%</span> · 剩余 ≈ <span id="remain">5h00m</span></b></div>
     <div id="bar"><div id="fill"></div></div>
   </div>
+  <div id="energyBox">
+    <div class="lab"><span>清空上下文 [SPACE]</span><b id="energyPct">0%</b></div>
+    <div id="energyBar"><div id="energyFill"></div></div>
+  </div>
   <div id="stats">
     <span>存活 <b id="tAlive">0:00</b></span>
     <span>并发 <b id="tConc">×0</b></span>
     <span>擦弹 <b id="tGraze">0</b></span>
   </div>
 </div>
+<button id="touchBomb" class="touch-bomb hide" title="清空上下文 (SPACE / 双击)">
+  <span>🧹 清空<br>上下文</span>
+</button>
+<div id="toast">✅ 战绩已复制到剪贴板！</div>
 
 <div id="menu" class="ovl">
   <div class="card">
@@ -83,10 +126,12 @@
       它正在你的会话里游荡 —— 躲开它喷射的鹈鹕，<b>把 5 小时额度安全耗尽</b>，一次都别用到它。</div>
     <div class="rules">
       · 额度随时间自然燃烧，<em>约 5 分钟</em>耗尽（0% → 100% 即胜利）<br>
-      · 场上会刷出 <em class="cy">「并发」转圈图标</em>，拾取 <em class="cy">+5%</em> 燃烧进度<br>
+      · 拾取 <em class="cy">「并发」图标</em>，增加 <em class="cy">+5%</em> 燃烧进度<br>
+      · <em class="cy">擦弹 (Graze)</em> 充能，满 100% 按 <em class="cy">SPACE / 点击按钮</em> 释放<b>「清空上下文」</b>全屏消弹！<br>
       · 被鹈鹕命中 <em>一次</em>，你就成了鹈鹕的素材<br>
-      · 鼠标移动 / WASD / 方向键 操控，<em>P</em> 暂停，<em>M</em> 静音
+      · 鼠标 / 触控 / WASD 移动，<em>SPACE</em> 清空上下文，<em>P</em> 暂停，<em>M</em> 静音
     </div>
+    <div id="menuBest" class="best-bar" style="display:none"></div>
     <button class="btn" id="btnStart">开 始 躲 避</button>
     <div class="keys">SPACE / 点击 开始</div>
   </div>
@@ -97,7 +142,10 @@
     <h1 class="red">游 戏 失 败</h1>
     <div class="sub" id="overReason">你被一只降智鹈鹕精准命中。</div>
     <div id="overStats"></div>
-    <button class="btn" id="btnRetry">再 来 一 次</button>
+    <div class="btn-row">
+      <button class="btn" id="btnRetry">再 来 一 次</button>
+      <button class="btn sec" id="btnCopyOver">📋 复制战绩</button>
+    </div>
     <div class="keys">R / 点击 重新开始</div>
   </div>
 </div>
@@ -107,7 +155,10 @@
     <h1 class="gold">额 度 耗 尽 ！</h1>
     <div class="sub">5 小时窗口安全烧完 —— 你全程没有用到一次降智 ASTRA。<br>鹈鹕在窗外游荡，而你是清醒的。</div>
     <div id="winStats"></div>
-    <button class="btn" id="btnAgain">再 玩 一 局</button>
+    <div class="btn-row">
+      <button class="btn" id="btnAgain">再 玩 一 局</button>
+      <button class="btn sec" id="btnCopyWin">📋 复制战绩</button>
+    </div>
     <div class="keys">R / 点击 重新开始</div>
   </div>
 </div>
@@ -187,29 +238,64 @@ const MAX_LIVE_PICKUPS = 3;
 
 let state = "menu";           // menu | playing | dying | over | win
 let paused = false;
-let elapsed = 0, progress = 0, grazes = 0, concs = 0;
+let elapsed = 0, progress = 0, grazes = 0, concs = 0, clearedCount = 0, dodged = 0;
+let energy = 0;               // 0 to 100
+let currentPhase = 1;        // 1 | 2 | 3
+let phaseAnnounce = null;     // {txt, sub, t, life}
+let shockwaves = [];
 let dyingT = 0, overT = 0, winT = 0, hitAt = {x:0, y:0};
 let shake = 0, fireCount = 0, hudTick = 0;
 
-const player = {x:0, y:0, r:13, hitR:7, speed:340};
+const player = {x:0, y:0, r:13, hitR:7, speed:340, invuln:0};
 const boss = {x:0, y:0, vx:0, vy:0, tx:0, ty:0, retarget:0, rot:0, r:58, rage:0, rageWarn:0, nextRage:14, taunt:"", tauntT:0};
 let bullets = [], pickups = [], particles = [], floats = [];
 let fireTimer = 1.2, pickupTimer = 3.5;
 
+/* ================= records ================= */
+function loadRecords(){
+  try {
+    const r = JSON.parse(localStorage.getItem("pelican_best_v1") || "{}");
+    return {
+      maxProgress: Number(r.maxProgress) || 0,
+      bestTime: Number(r.bestTime) || 0,
+      maxGraze: Number(r.maxGraze) || 0,
+      wins: Number(r.wins) || 0,
+      games: Number(r.games) || 0
+    };
+  } catch(e){
+    return {maxProgress:0, bestTime:0, maxGraze:0, wins:0, games:0};
+  }
+}
+let records = loadRecords();
+function saveRecords(p, t, g, won){
+  let newPB = false;
+  if (p > records.maxProgress + 0.001) { records.maxProgress = p; newPB = true; }
+  if (t > records.bestTime) { records.bestTime = t; newPB = true; }
+  if (g > records.maxGraze) { records.maxGraze = g; newPB = true; }
+  if (won) records.wins = (records.wins || 0) + 1;
+  records.games = (records.games || 0) + 1;
+  try { localStorage.setItem("pelican_best_v1", JSON.stringify(records)); } catch(e){}
+  return newPB;
+}
+
 const TAUNTS = [
-  "我是超级大旗舰 ASTRA！", "降智中…正在输出鹈鹕.jpg", "429：鹈鹕过多",
-  "你的并发归我了", "快乐骑行！", "这段是 thinking 内容（并不是）",
+  "我是超级大旗舰 ASTRA！", "降智中…正在输出鹈鹕.jpg", "429：鹈鹕过多，请稍后再试",
+  "你的并发归我了！", "快乐骑行！快乐骑行！", "这段是 thinking 内容（并不是）",
   "额度的味道，鹈鹕知道", "画猫？不，画鹈鹕", "benchmark 满分，实战归零",
-  "鹈鹕虽迟但到"
+  "鹈鹕虽迟但到", "我正在深度思考：为什么全世界都是鹈鹕？",
+  "由于高需求，当前模型已降级为草履虫", "别躲了，吃我一记思维链暴击！",
+  "Token 也是肉，并发也是油！", "正在调用工具：生成 100 只高清鹈鹕",
+  "抱歉，作为一个大语言模型，我只认识鹈鹕", "上下文快溢出了！你别清空啊！",
+  "思考了 300 秒，决定画一只更大的鹈鹕"
 ];
 const FAILS = [
   "你被一只降智鹈鹕精准命中。",
   "ASTRA 把你画进了下一幅鹈鹕。",
   "降智打击，弹无虚发。",
   "鹈鹕：快乐骑行！你：快乐重来。",
-  "这颗子弹的 benchmark 也是满分。"
+  "这颗子弹的 benchmark 也是满分。",
+  "ASTRA 输出完成，你的大脑已被格式化为鹈鹕。"
 ];
-
 /* ================= input ================= */
 const keys = {};
 const mouse = {x:0, y:0, active:false};
@@ -218,19 +304,57 @@ window.addEventListener("keydown", e => {
   if (["ArrowUp","ArrowDown","ArrowLeft","ArrowRight","Space"].includes(e.code)) e.preventDefault();
   if (e.code === "KeyM") muted = !muted;
   if ((e.code === "KeyP" || e.code === "Escape") && state === "playing") paused = !paused;
-  if (e.code === "Space" && state === "menu") startGame();
+  if (e.code === "Space"){
+    if (state === "menu") startGame();
+    else if (state === "playing") triggerClearContext();
+  }
+  if ((e.code === "KeyF" || e.code === "KeyE") && state === "playing") triggerClearContext();
   if (e.code === "KeyR" && (state === "over" || state === "win")) startGame();
 });
 window.addEventListener("keyup", e => keys[e.code] = false);
 cvs.addEventListener("mousemove", e => { mouse.x = e.clientX; mouse.y = e.clientY; mouse.active = true; });
+let lastTouchTime = 0;
 cvs.addEventListener("touchstart", touch, {passive:false});
 cvs.addEventListener("touchmove", touch, {passive:false});
-function touch(e){ e.preventDefault(); const t = e.touches[0]; mouse.x = t.clientX; mouse.y = t.clientY; mouse.active = true; }
+function touch(e){
+  e.preventDefault();
+  const t = e.touches[0];
+  mouse.x = t.clientX; mouse.y = t.clientY; mouse.active = true;
+  const now = performance.now();
+  if (now - lastTouchTime < 300 && state === "playing") triggerClearContext();
+  lastTouchTime = now;
+}
 
 /* ================= flow ================= */
+function triggerClearContext(){
+  if (state !== "playing" || paused || energy < 100) return;
+  energy = 0;
+  clearedCount++;
+  shake = 18;
+  player.invuln = 1.3;
+  shockwaves.push({x: player.x, y: player.y, r: 12, maxR: Math.max(W, H) * 1.15, t: 0, life: 0.65});
+  const killed = bullets.length;
+  for (const b of bullets){
+    burst(b.x, b.y, "#5ef2ff", 8);
+    dodged++;
+  }
+  bullets = [];
+  boss.vy = -380;
+  boss.rage = 0;
+  boss.rageWarn = 0;
+  boss.taunt = "上下文已被清空？！";
+  boss.tauntT = 3.2;
+  floats.push({x: player.x, y: player.y - 35, txt: `🧹 清空上下文！消弹 ×${killed}`, t: 0, life: 1.8, color: "#5ef2ff"});
+  beep(880, 0.12, "sawtooth", 0.08, 220);
+  setTimeout(() => beep(440, 0.35, "sine", 0.10, 110), 90);
+  updateHUD(true);
+}
+
 function startGame(){
   state = "playing"; paused = false;
-  elapsed = 0; progress = 0; grazes = 0; concs = 0; fireCount = 0;
+  elapsed = 0; progress = 0; grazes = 0; concs = 0; fireCount = 0; dodged = 0;
+  clearedCount = 0; energy = 0; currentPhase = 1; phaseAnnounce = null;
+  player.invuln = 0; shockwaves = [];
   bullets = []; pickups = []; particles = []; floats = [];
   fireTimer = 1.4; pickupTimer = 3.0; shake = 0;
   player.x = W/2; player.y = ARENA.y + ARENA.h * 0.78;
@@ -240,18 +364,67 @@ function startGame(){
   boss.retarget = 0; boss.taunt = TAUNTS[0]; boss.tauntT = 5;
   show(null);
   document.getElementById("hud").style.display = "flex";
+  updateHUD(true);
   beep(440, 0.12, "square", 0.05, 880);
 }
 function show(id){
   for (const o of ["menu","over","win"]) document.getElementById(o).classList.toggle("hide", o !== id);
+  const tb = document.getElementById("touchBomb");
+  if (tb) tb.classList.toggle("hide", id !== null);
   if (!id) return;
   document.getElementById("hud").style.display = id === "menu" ? "none" : "flex";
+  if (id === "menu") updateMenuBest();
 }
-function statsHTML(){
-  return `存活 <b>${fmtTime(elapsed)}</b> · 额度燃烧 <b>${(progress*100).toFixed(1)}%</b><br>` +
-         `拾取并发 <b>×${concs}</b> · 擦弹 <b>${grazes}</b> · 躲过鹈鹕 <b>${dodged}</b> 只`;
+function updateMenuBest(){
+  const mb = document.getElementById("menuBest");
+  if (mb && records.games > 0){
+    mb.style.display = "inline-block";
+    mb.innerHTML = `历史最佳：额度 <b>${(records.maxProgress*100).toFixed(1)}%</b> · 存活 <b>${fmtTime(records.bestTime)}</b> · 最高擦弹 <b>${records.maxGraze}</b> · 胜场 <b>${records.wins}</b>`;
+  }
 }
-let dodged = 0;
+function statsHTML(isPB){
+  const pbTag = isPB ? `<span class="pb-badge">新纪录 PB!</span>` : "";
+  return `存活 <b>${fmtTime(elapsed)}</b> · 额度燃烧 <b>${(progress*100).toFixed(1)}%</b> ${pbTag}<br>` +
+         `拾取并发 <b>×${concs}</b> · 擦弹 <b>${grazes}</b> · 消弹 <b>${clearedCount}</b> · 躲过 <b>${dodged}</b> 只<br>` +
+         `<div class="best-bar">历史最佳：额度 <b>${(records.maxProgress*100).toFixed(1)}%</b> · 存活 <b>${fmtTime(records.bestTime)}</b> · 最高擦弹 <b>${records.maxGraze}</b></div>`;
+}
+function copyResult(){
+  const reason = state === "win" ? "5 小时额度安全耗尽！顺利通关！" : (document.getElementById("overReason").textContent || "降智打击");
+  const text = `🎮【鹈鹕大战 OpenAI · ASTRA 降智危机】\n` +
+               `⏱️ 存活时间：${fmtTime(elapsed)}\n` +
+               `🔥 额度燃烧：${(progress * 100).toFixed(1)}%\n` +
+               `⚡ 并发拾取：×${concs}\n` +
+               `✨ 极限擦弹：${grazes} 次\n` +
+               `🧹 清空上下文：${clearedCount} 次\n` +
+               `🎯 躲过鹈鹕：${dodged} 只\n` +
+               `💀 结局：${reason}\n` +
+               `🔗 来试试你的额度能撑多久：https://lingr25.github.io/pelican-vs-openai/`;
+  if (navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(() => showToast()).catch(() => fallbackCopy(text));
+  } else {
+    fallbackCopy(text);
+  }
+}
+function fallbackCopy(text){
+  try {
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand("copy");
+    document.body.removeChild(ta);
+    showToast();
+  } catch(e){
+    showToast("复制失败，请手动截图战绩");
+  }
+}
+function showToast(msg = "✅ 战绩已复制到剪贴板！"){
+  const t = document.getElementById("toast");
+  if (!t) return;
+  t.textContent = msg;
+  t.classList.add("show");
+  setTimeout(() => t.classList.remove("show"), 2200);
+}
 function gameOver(){
   state = "dying"; dyingT = 0;
   hitAt = {x: player.x, y: player.y};
@@ -260,13 +433,15 @@ function gameOver(){
 }
 function finishOver(){
   state = "over"; overT = 0;
+  const isPB = saveRecords(progress, elapsed, grazes, false);
   document.getElementById("overReason").textContent = FAILS[Math.floor(Math.random()*FAILS.length)];
-  document.getElementById("overStats").innerHTML = statsHTML();
+  document.getElementById("overStats").innerHTML = statsHTML(isPB);
   show("over");
 }
 function winGame(){
   state = "win"; winT = 0;
-  document.getElementById("winStats").innerHTML = statsHTML();
+  const isPB = saveRecords(1, elapsed, grazes, true);
+  document.getElementById("winStats").innerHTML = statsHTML(isPB);
   show("win");
   beep(523, .12, "square", .07); setTimeout(()=>beep(659, .12, "square", .07), 130);
   setTimeout(()=>beep(784, .12, "square", .07), 260); setTimeout(()=>beep(1047, .3, "square", .08), 390);
@@ -277,7 +452,8 @@ function difficulty(){ return clamp(elapsed / 150, 0, 1); }
 function firePelican(){
   const d = difficulty();
   fireCount++;
-  const speed = lerp(175, 300, d) * (boss.rage > 0 ? 1.25 : 1);
+  const phaseMult = currentPhase === 2 ? 1.15 : (currentPhase === 3 ? 1.30 : 1);
+  const speed = lerp(175, 300, d) * (boss.rage > 0 ? 1.25 : 1) * phaseMult;
   const spawn = (ang, spd) => {
     bullets.push({
       x: boss.x + Math.cos(ang) * (boss.r + 8), y: boss.y + Math.sin(ang) * (boss.r + 8),
@@ -285,13 +461,14 @@ function firePelican(){
       rot: rand(0, TAU), spin: rand(-4, 4), r: 17, hitR: 12, grazed: false, t: 0
     });
   };
-  if (fireCount % 5 === 4){                     // radial ring
-    const n = 9 + Math.round(d * 6), off = rand(0, TAU);
+  const ringInterval = currentPhase === 3 ? 4 : 5;
+  if (fireCount % ringInterval === (ringInterval - 1)){  // radial ring
+    const n = 9 + Math.round(d * 6) + (currentPhase === 3 ? 3 : 0), off = rand(0, TAU);
     for (let i = 0; i < n; i++) spawn(off + i/n * TAU, speed * 0.82);
     shake = Math.max(shake, 7);
     beep(160, 0.18, "square", 0.06, 90);
-  } else {                                      // aimed spread
-    const n = 1 + Math.round(d * 2);
+  } else {                                              // aimed spread
+    const n = 1 + Math.round(d * 2) + (currentPhase >= 2 ? 1 : 0);
     const base = Math.atan2(player.y - boss.y, player.x - boss.x);
     for (let i = 0; i < n; i++){
       const off = n === 1 ? 0 : (i/(n-1) - 0.5) * 0.34;
@@ -327,6 +504,26 @@ function update(dt){
   elapsed += dt;
   progress += dt / PASSIVE_TIME;
   if (progress >= 1){ progress = 1; updateHUD(true); winGame(); return; }
+
+  /* --- phase progression --- */
+  if (currentPhase === 1 && progress >= 0.35){
+    currentPhase = 2;
+    phaseAnnounce = {txt: "⚠️ 阶段 2：ASTRA 思维链失控！", sub: "弹幕加速 · 暴走频率提升", t: 0, life: 3.2};
+    shake = 16;
+    beep(330, 0.25, "sawtooth", 0.08, 660);
+    boss.taunt = "思考链启动：正在无限生成鹈鹕！";
+    boss.tauntT = 4.5;
+  } else if (currentPhase === 2 && progress >= 0.70){
+    currentPhase = 3;
+    phaseAnnounce = {txt: "🚨 阶段 3：算力全面熔毁！", sub: "429 鹈鹕海啸来袭 · 保持清醒！", t: 0, life: 3.6};
+    shake = 22;
+    beep(220, 0.4, "sawtooth", 0.12, 110);
+    boss.taunt = "上下文溢出！求求你换 Claude 吧！";
+    boss.tauntT = 4.5;
+  }
+
+  if (player.invuln > 0) player.invuln -= dt;
+  energy = Math.min(100, energy + dt * 2.2); // passive trickle
 
   const d = difficulty();
 
@@ -415,10 +612,24 @@ function update(dt){
     b.x += b.vx * dt; b.y += b.vy * dt; b.rot += b.spin * dt;
     if (b.x < -80 || b.x > W + 80 || b.y < -80 || b.y > H + 80){ bullets.splice(i, 1); dodged++; continue; }
     const dist = Math.hypot(b.x - player.x, b.y - player.y);
-    if (dist < b.hitR + player.hitR){ gameOver(); return; }
-    if (!b.grazed && dist < 52){ b.grazed = true; grazes++; burst(player.x, player.y, "rgba(255,255,255,.8)", 4); }
+    if (dist < b.hitR + player.hitR){
+      if (player.invuln > 0){
+        burst(b.x, b.y, "#5ef2ff", 8);
+        bullets.splice(i, 1);
+        dodged++;
+        continue;
+      }
+      gameOver();
+      return;
+    }
+    if (!b.grazed && dist < 54){
+      b.grazed = true;
+      grazes++;
+      energy = Math.min(100, energy + 14); // ~7-8 grazes = 1 full context clear
+      burst(player.x, player.y, "rgba(94,242,255,.9)", 4);
+      floats.push({x: player.x + rand(-15, 15), y: player.y - 18, txt: "+擦弹充能", t: 0, life: 0.6, color: "#8be9ff"});
+    }
   }
-
   /* --- fx --- */
   for (let i = particles.length - 1; i >= 0; i--){
     const p = particles[i]; p.t += dt;
@@ -430,13 +641,30 @@ function update(dt){
     if (f.t > f.life) floats.splice(i, 1);
   }
   for (const s of stars){ s.y += s.z * 9 * dt; if (s.y > H + 2){ s.y = -2; s.x = rand(0, W); } }
+  for (let i = shockwaves.length - 1; i >= 0; i--){
+    const sw = shockwaves[i]; sw.t += dt;
+    if (sw.t > sw.life){ shockwaves.splice(i, 1); continue; }
+    sw.r = lerp(12, sw.maxR, Math.pow(sw.t / sw.life, 0.45));
+  }
+  if (phaseAnnounce){
+    phaseAnnounce.t += dt;
+    if (phaseAnnounce.t > phaseAnnounce.life) phaseAnnounce = null;
+  }
   shake = Math.max(0, shake - dt * 30);
   updateHUD();
 }
 
 function updateHUD(force){
   document.getElementById("fill").style.width = (progress * 100).toFixed(2) + "%";
-  hudTick -= 1;
+  const eFill = document.getElementById("energyFill");
+  const ePct = document.getElementById("energyPct");
+  const eBar = document.getElementById("energyBar");
+  const tb = document.getElementById("touchBomb");
+  if (eFill) eFill.style.width = energy.toFixed(1) + "%";
+  if (ePct) ePct.textContent = Math.floor(energy) + "%";
+  const ready = energy >= 100;
+  if (eBar) eBar.classList.toggle("ready", ready);
+  if (tb) tb.classList.toggle("ready", ready);
   if (!force && hudTick > 0) return;
   hudTick = 6;
   document.getElementById("pct").textContent = (progress * 100).toFixed(1) + "%";
@@ -493,6 +721,19 @@ function render(){
     ctx.restore();
   }
 
+  /* shockwaves */
+  for (const sw of shockwaves){
+    const alpha = 1 - sw.t / sw.life;
+    ctx.save();
+    ctx.strokeStyle = `rgba(94,242,255,${alpha * 0.9})`;
+    ctx.lineWidth = 14 * alpha + 2;
+    ctx.shadowColor = "#5ef2ff";
+    ctx.shadowBlur = 24;
+    ctx.beginPath();
+    ctx.arc(sw.x, sw.y, sw.r, 0, TAU);
+    ctx.stroke();
+    ctx.restore();
+  }
   /* boss: astra galaxy */
   if (bossImg.complete && bossImg.naturalWidth){
     ctx.save(); ctx.translate(boss.x, boss.y);
@@ -525,6 +766,25 @@ function render(){
   /* player */
   if (state === "playing"){
     ctx.save(); ctx.translate(player.x, player.y);
+    if (player.invuln > 0){
+      const shieldBlink = player.invuln < 0.4 ? (Math.sin(player.invuln * 25) > 0 ? 1 : 0.25) : 1;
+      ctx.save();
+      ctx.globalAlpha = shieldBlink * 0.85;
+      ctx.rotate(elapsed * 4);
+      ctx.strokeStyle = "#5ef2ff"; ctx.lineWidth = 3;
+      ctx.shadowColor = "#5ef2ff"; ctx.shadowBlur = 20;
+      ctx.beginPath(); ctx.arc(0, 0, player.r + 14, 0, TAU); ctx.stroke();
+      ctx.strokeStyle = "rgba(255,255,255,.65)"; ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      for (let k = 0; k < 6; k++){
+        const ka = k * Math.PI / 3;
+        const kr = player.r + 10;
+        const kx = Math.cos(ka) * kr, ky = Math.sin(ka) * kr;
+        if (k === 0) ctx.moveTo(kx, ky); else ctx.lineTo(kx, ky);
+      }
+      ctx.closePath(); ctx.stroke();
+      ctx.restore();
+    }
     ctx.shadowColor = "#5ef2ff"; ctx.shadowBlur = 18;
     const pg = ctx.createRadialGradient(0, 0, 2, 0, 0, player.r);
     pg.addColorStop(0, "#eaffff"); pg.addColorStop(0.55, "#5ef2ff"); pg.addColorStop(1, "rgba(94,242,255,.05)");
@@ -551,6 +811,31 @@ function render(){
   }
   ctx.globalAlpha = 1;
 
+  /* phase announce banner */
+  if (phaseAnnounce){
+    const p = phaseAnnounce;
+    const a = p.t < 0.35 ? p.t / 0.35 : (p.t > p.life - 0.4 ? (p.life - p.t) / 0.4 : 1);
+    ctx.save();
+    ctx.globalAlpha = clamp(a, 0, 1);
+    ctx.textAlign = "center";
+    const py = ARENA.y + 70;
+    const pw = Math.min(W - 48, 460), ph = 62;
+    ctx.fillStyle = "rgba(10,14,32,0.88)";
+    ctx.strokeStyle = currentPhase === 3 ? "rgba(255,93,115,0.8)" : "rgba(255,209,102,0.8)";
+    ctx.lineWidth = 2;
+    ctx.shadowColor = currentPhase === 3 ? "#ff5d73" : "#ffd166";
+    ctx.shadowBlur = 18;
+    roundRect(W/2 - pw/2, py - ph/2, pw, ph, 14);
+    ctx.fill(); ctx.stroke();
+    ctx.shadowBlur = 0;
+    ctx.font = "bold 17px 'Microsoft YaHei',sans-serif";
+    ctx.fillStyle = currentPhase === 3 ? "#ff8ba0" : "#ffd166";
+    ctx.fillText(p.txt, W/2, py - 5);
+    ctx.font = "12px 'Microsoft YaHei',sans-serif";
+    ctx.fillStyle = "#c2d6f8";
+    ctx.fillText(p.sub, W/2, py + 18);
+    ctx.restore();
+  }
   /* dying: slow-mo red vignette */
   if (state === "dying"){
     ctx.fillStyle = `rgba(255,40,70,${0.12 + 0.1 * Math.sin(dyingT * 20)})`;
@@ -619,6 +904,11 @@ function loop(now){
 document.getElementById("btnStart").onclick = startGame;
 document.getElementById("btnRetry").onclick = startGame;
 document.getElementById("btnAgain").onclick = startGame;
+document.getElementById("btnCopyOver").onclick = copyResult;
+document.getElementById("btnCopyWin").onclick = copyResult;
+const tbEl = document.getElementById("touchBomb");
+if (tbEl) tbEl.onclick = triggerClearContext;
+updateMenuBest();
 resize();
 show("menu");
 requestAnimationFrame(loop);
@@ -627,9 +917,13 @@ requestAnimationFrame(loop);
 window.__game = {
   get state(){ return state; },
   get progress(){ return progress; },
+  get energy(){ return energy; },
   setProgress(p){ progress = p; },
+  addEnergy(v){ energy = Math.min(100, energy + v); updateHUD(true); },
+  bomb: triggerClearContext,
   kill(){ if (state === "playing") gameOver(); },
-  start: startGame
+  start: startGame,
+  copy: copyResult
 };
 </script>
 </body>
