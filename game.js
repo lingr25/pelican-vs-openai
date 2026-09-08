@@ -6,6 +6,7 @@ const PEL_SRC  = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMCAgM
 const bossImg = new Image(); bossImg.src = BOSS_SRC;
 const pelImg  = new Image(); pelImg.src  = PEL_SRC;
 document.getElementById("menuBoss").src = BOSS_SRC;
+document.getElementById("astraHero").src = BOSS_SRC;
 
 const TIBO_SRC = "177053821.jpg";
 const tiboImg  = new Image(); tiboImg.src  = TIBO_SRC;
@@ -1570,7 +1571,31 @@ function render(){
 
   /* bullets: pelicans & strawberries */
   for (const b of bullets){
-    ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(b.rot);
+    ctx.save(); ctx.translate(b.x, b.y);
+    // A brief launch accent only changes drawing, never trajectory or hit radius.
+    const entrance = reducedMotion.matches ? 1 : clamp(b.t / 0.26, 0, 1);
+    if (entrance < 1){
+      const fade = 1 - entrance;
+      const speed = Math.hypot(b.vx, b.vy);
+      ctx.save();
+      ctx.strokeStyle = b.isStrawberry ? "#ffa1bc" : "#e4e7fa";
+      ctx.lineWidth = 1.5;
+      ctx.globalAlpha = fade * .55;
+      ctx.beginPath(); ctx.arc(0, 0, b.r + 3 + entrance * 19, 0, TAU); ctx.stroke();
+      if (speed > 0){
+        ctx.fillStyle = b.isStrawberry ? "#ffa1bc" : "#e4e7fa";
+        for (let i = 1; i <= 3; i++){
+          const distance = b.r + i * 7;
+          const size = 4 - i;
+          ctx.globalAlpha = fade * (1 - i / 4) * .65;
+          ctx.fillRect(-b.vx / speed * distance - size / 2, -b.vy / speed * distance - size / 2, size, size);
+        }
+      }
+      ctx.restore();
+      const pop = 1 + .28 * Math.sin(entrance * Math.PI) * fade;
+      ctx.scale(pop, pop);
+    }
+    ctx.rotate(b.rot);
     if (b.isStrawberry){
       ctx.shadowColor = "#ff4070"; ctx.shadowBlur = 14;
       ctx.drawImage(pelSprite, -b.r, -b.r, b.r * 2, b.r * 2);
