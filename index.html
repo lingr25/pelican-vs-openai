@@ -546,6 +546,11 @@ function triggerClearContext(){
   boss.vy = char.bombPush;
   boss.rage = 0;
   boss.rageWarn = 0;
+  if (boss.laser){
+    boss.laser.state = "idle";
+    boss.laser.timer = 0;
+    boss.laserCooldown = rand(8, 12);
+  }
   boss.taunt = "上下文已被清空？！";
   boss.tauntT = 3.2;
   floats.push({x: player.x, y: player.y - 35, txt: `🧹 清空上下文！消弹 ×${killed}`, t: 0, life: 1.8, color: "#5ef2ff"});
@@ -574,6 +579,11 @@ function triggerTiboRescue(){
   boss.vy = -360;
   boss.rage = 0;
   boss.rageWarn = 0;
+  if (boss.laser){
+    boss.laser.state = "idle";
+    boss.laser.timer = 0;
+    boss.laserCooldown = rand(9, 14);
+  }
   boss.taunt = "Tibo 怎么又在重置额度？！";
   boss.tauntT = 4.2;
   
@@ -948,6 +958,7 @@ function update(dt){
             updateHUD(true);
           } else if (Math.random() < tiboChance){
             triggerTiboRescue();
+            return;
           } else {
             gameOver();
             return;
@@ -960,7 +971,11 @@ function update(dt){
       }
     }
   } else {
-    if (boss.frozen > 0 && boss.laser.state !== "idle") boss.laser.state = "idle";
+    if (boss.laser && boss.laser.state !== "idle"){
+      boss.laser.state = "idle";
+      boss.laser.timer = 0;
+      boss.laserCooldown = rand(9, 14);
+    }
   }
 
   /* --- pickups --- */
