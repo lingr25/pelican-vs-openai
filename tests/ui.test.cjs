@@ -8,7 +8,7 @@ let browser, server, url;
 before(async () => {
   server = http.createServer((req, res) => {
     const file = path.join(__dirname, '..', req.url === '/' ? 'index.html' : req.url);
-    const types = { '.html': 'text/html', '.png': 'image/png', '.mp3': 'audio/mpeg', '.jpg': 'image/jpeg' };
+    const types = { '.html': 'text/html', '.css': 'text/css', '.js': 'text/javascript', '.png': 'image/png', '.mp3': 'audio/mpeg', '.jpg': 'image/jpeg' };
     if (!fs.existsSync(file) || !fs.statSync(file).isFile()) { res.writeHead(404).end(); return; }
     res.setHeader('Content-Type', types[path.extname(file)] || 'application/octet-stream');
     fs.createReadStream(file).pipe(res);
@@ -26,6 +26,7 @@ test('combat controls are hidden in the menu and on the result screen', async ()
     assert.equal(await page.locator('#touchDash').isVisible(), false);
     await page.locator('#btnStart').click();
     assert.equal(await page.locator('#touchDash').isVisible(), true);
+    assert.equal(await page.locator('#hud').isVisible(), true);
     await page.evaluate(() => window.__game.kill());
     await page.locator('#over:not(.hide)').waitFor();
     assert.equal(await page.locator('#touchBomb').isVisible(), false);
@@ -91,5 +92,17 @@ test('portable build reaches victory and restarts with no browser errors', async
     await page.locator('#btnAgain').click();
     assert.equal(await page.evaluate(() => window.__game.state), 'playing');
     assert.deepEqual(errors, []);
+  } finally { await page.close(); }
+});
+
+test('the HUD keeps refreshing time and quota during combat', async () => {
+  const page = await browser.newPage();
+  try {
+    await page.goto(url);
+    await page.locator('#btnStart').click();
+    await page.evaluate(() => { window.__game.freezeBoss(60); window.__game.setProgress(0.25); });
+    await page.waitForTimeout(1300);
+    assert.notEqual(await page.locator('#tAlive').textContent(), '0:00');
+    assert.ok(parseFloat(await page.locator('#pct').textContent()) >= 25);
   } finally { await page.close(); }
 });
