@@ -74,6 +74,15 @@
   .pb-badge{display:inline-block;padding:2px 8px;border-radius:6px;background:linear-gradient(90deg,#ff5d73,#ff9f43);
     color:#fff;font-size:11px;font-weight:700;margin-left:6px;vertical-align:middle;
     box-shadow:0 0 10px rgba(255,93,115,.5)}
+  .char-picker{margin:12px auto 14px;max-width:480px;background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:14px;padding:12px 14px}
+  .char-picker-title{font-size:12px;color:#8fa3c8;letter-spacing:1px;margin-bottom:8px;text-align:left}
+  .char-tabs{display:flex;gap:8px}
+  .char-tab{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:8px 4px;border-radius:8px;border:1px solid rgba(255,255,255,.12);background:rgba(10,18,36,.6);cursor:pointer;transition:all .15s;color:#9fb4d8;font-size:12px;font-weight:600}
+  .char-tab:hover{background:rgba(94,242,255,.1);border-color:rgba(94,242,255,.3)}
+  .char-tab.active{border-color:var(--cyan);background:linear-gradient(180deg,rgba(94,242,255,.18),rgba(10,18,36,.85));color:#fff;box-shadow:0 0 14px rgba(94,242,255,.25)}
+  .char-tab[data-char="jensen"].active{border-color:var(--gold);background:linear-gradient(180deg,rgba(255,209,102,.18),rgba(10,18,36,.85));color:#fff;box-shadow:0 0 14px rgba(255,209,102,.25)}
+  .char-tab[data-char="pm"].active{border-color:var(--red);background:linear-gradient(180deg,rgba(255,93,115,.18),rgba(10,18,36,.85));color:#fff;box-shadow:0 0 14px rgba(255,93,115,.25)}
+  .char-desc{margin-top:8px;font-size:11px;color:#dfe9ff;line-height:1.6;text-align:left;min-height:36px;padding:6px 10px;background:rgba(0,0,0,.28);border-radius:6px}
   /* ---------- overlays ---------- */
   .ovl{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
     z-index:10;background:radial-gradient(ellipse at center,rgba(5,8,18,.25),rgba(3,4,10,.88) 75%)}
@@ -142,6 +151,15 @@
       · <em class="cy">擦弹 (Graze)</em> 充能，满 100% 按 <em class="cy">SPACE / 点击按钮</em> 释放<b>「清空上下文」</b>全屏消弹！<br>
       · 致命一击？有几率触发 <em class="cy">Tibo 降临</em>：免除暴毙，但 5 小时额度<b>重置回 100%</b>！<br>
       · 移动操控：鼠标 / 触控 / WASD，<em>SHIFT / 跃迁按钮</em> 闪避冲刺（自带无敌帧），<em>SPACE</em> 清空上下文，<em>P</em> 暂停，<em>M</em> 开关音乐音效
+    </div>
+    <div class="char-picker">
+      <div class="char-picker-title">选择出战角色</div>
+      <div class="char-tabs" id="charTabs">
+        <div class="char-tab active" data-char="prompt"><span>👔</span> Prompt 工程师</div>
+        <div class="char-tab" data-char="jensen"><span>🧥</span> 皮衣老黄</div>
+        <div class="char-tab" data-char="pm"><span>☕</span> 红温产品经理</div>
+      </div>
+      <div class="char-desc" id="charDesc"></div>
     </div>
     <div id="menuBest" class="best-bar" style="display:none"></div>
     <button class="btn" id="btnStart">开 始 躲 避</button>
@@ -322,6 +340,86 @@ function stopBGM(){
 const PASSIVE_TIME = 300;     // seconds to burn 0%->100% with no pickups
 const PICKUP_BONUS = 0.05;    // +5% per 并发
 const MAX_LIVE_PICKUPS = 3;
+const CHARACTERS = {
+  prompt: {
+    id: "prompt",
+    name: "Prompt 工程师",
+    icon: "👔",
+    color: "#5ef2ff",
+    tag: "提词",
+    desc: "<b>【大招流】</b>擦弹充能 +43%（约 5 次擦满）；清屏击退距离 +21%。均衡万金油。",
+    speed: 340,
+    hitR: 7,
+    initShields: 0,
+    maxShields: 2,
+    dashCd: 3.6,
+    dashInvuln: 0.18,
+    grazeCharge: 20,
+    bombPush: -460,
+    freezeDur: 3.2,
+    concBonus: 0.05,
+    halluPenalty: 0.04,
+    pickupR: 26
+  },
+  jensen: {
+    id: "jensen",
+    name: "皮衣老黄",
+    icon: "🧥",
+    color: "#ffd166",
+    tag: "老黄",
+    desc: "<b>【算力教皇】</b>开局自带 1 层护盾（上限扩充至 3 层）；液氮散热：冰冻长达 5 秒；买越多省越多：并发 +6.5%。",
+    speed: 330,
+    hitR: 7,
+    initShields: 1,
+    maxShields: 3,
+    dashCd: 3.8,
+    dashInvuln: 0.18,
+    grazeCharge: 14,
+    bombPush: -380,
+    freezeDur: 5.0,
+    concBonus: 0.065,
+    halluPenalty: 0.04,
+    pickupR: 26
+  },
+  pm: {
+    id: "pm",
+    name: "红温产品经理",
+    icon: "☕",
+    color: "#ff5d73",
+    tag: "红温",
+    desc: "<b>【高敏刺客】</b>基础移速 410 (+21%)；跃迁冷却只要 2.2 秒；吸附范围 32px。代价：误触幻觉倒扣 8% 且判定 8px。",
+    speed: 410,
+    hitR: 8,
+    initShields: 0,
+    maxShields: 2,
+    dashCd: 2.2,
+    dashInvuln: 0.20,
+    grazeCharge: 14,
+    bombPush: -380,
+    freezeDur: 3.2,
+    concBonus: 0.05,
+    halluPenalty: 0.08,
+    pickupR: 32
+  }
+};
+let selectedCharKey = "prompt";
+try { selectedCharKey = localStorage.getItem("pelican_selected_char") || "prompt"; } catch(e){}
+if (!CHARACTERS[selectedCharKey]) selectedCharKey = "prompt";
+let char = CHARACTERS[selectedCharKey];
+function selectCharacter(k){
+  if (!CHARACTERS[k]) return;
+  selectedCharKey = k;
+  char = CHARACTERS[k];
+  try { localStorage.setItem("pelican_selected_char", k); } catch(e){}
+  updateCharUI();
+}
+function updateCharUI(){
+  document.querySelectorAll(".char-tab").forEach(t => {
+    t.classList.toggle("active", t.getAttribute("data-char") === selectedCharKey);
+  });
+  const d = document.getElementById("charDesc");
+  if (d) d.innerHTML = char.desc;
+}
 
 let state = "menu";           // menu | playing | dying | over | win
 let paused = false;
@@ -343,7 +441,7 @@ const TIBO_QUOTES = [
   "“这次算我的，额度已重置为 100%！”",
   "“Product Update: 所有用户的额度已清空重置。”"
 ];
-const player = {x:0, y:0, r:13, hitR:7, speed:340, invuln:0, shields:0, slowTimer:0, dashCd:0, dashT:0, dashVx:0, dashVy:0, ghosts:[]};
+const player = {x:0, y:0, r:13, hitR:7, speed:340, invuln:0, shields:0, maxShields:2, slowTimer:0, dashCd:0, dashT:0, dashVx:0, dashVy:0, ghosts:[]};
 const boss = {
   x:0, y:0, vx:0, vy:0, tx:0, ty:0, retarget:0, rot:0, r:58, rage:0, rageWarn:0, nextRage:14, taunt:"", tauntT:0, frozen:0,
   laser: { state: "idle", timer: 0, warnDur: 1.25, fireDur: 1.1, ang: 0, sweepRate: 0, width: 28, hitR: 14 },
@@ -429,10 +527,9 @@ function touch(e){
 
 /* ================= flow ================= */
 function triggerDash(){
-  if (state !== "playing" || paused || player.dashCd > 0) return;
-  player.dashCd = 2.2;
-  player.dashT = 0.16;
-  player.invuln = Math.max(player.invuln, 0.28);
+  player.dashCd = char.dashCd;
+  player.dashT = 0.13;
+  player.invuln = Math.max(player.invuln, char.dashInvuln);
   let dx = (keys.KeyD||keys.ArrowRight?1:0) - (keys.KeyA||keys.ArrowLeft?1:0);
   let dy = (keys.KeyS||keys.ArrowDown?1:0) - (keys.KeyW||keys.ArrowUp?1:0);
   if (!dx && !dy){
@@ -444,12 +541,12 @@ function triggerDash(){
     const m = Math.hypot(dx, dy);
     dx /= m; dy /= m;
   }
-  const dashSpeed = player.speed * 3.2;
+  const dashSpeed = player.speed * 2.6;
   player.dashVx = dx * dashSpeed;
   player.dashVy = dy * dashSpeed;
-  shake = Math.max(shake, 8);
-  burst(player.x, player.y, "rgba(94,242,255,.8)", 14);
-  beep(360, 0.12, "sine", 0.08, 920);
+  shake = Math.max(shake, 7);
+  burst(player.x, player.y, char.color, 12);
+  beep(380, 0.12, "sine", 0.08, 920);
   updateHUD(true);
 }
 
@@ -466,7 +563,7 @@ function triggerClearContext(){
     dodged++;
   }
   bullets = [];
-  boss.vy = -380;
+  boss.vy = char.bombPush;
   boss.rage = 0;
   boss.rageWarn = 0;
   boss.taunt = "上下文已被清空？！";
@@ -521,7 +618,11 @@ function startGame(){
   elapsed = 0; progress = 0; grazes = 0; concs = 0; fireCount = 0; dodged = 0;
   clearedCount = 0; energy = 0; currentPhase = 1; phaseAnnounce = null;
   tiboSaves = 0; tiboPopup = null;
-  player.invuln = 0; player.shields = 0; player.slowTimer = 0; boss.frozen = 0; shockwaves = [];
+  player.speed = char.speed;
+  player.hitR = char.hitR;
+  player.shields = char.initShields;
+  player.maxShields = char.maxShields;
+  player.invuln = 0; player.slowTimer = 0; boss.frozen = 0; shockwaves = [];
   player.dashCd = 0; player.dashT = 0; player.ghosts = [];
   boss.laser = { state: "idle", timer: 0, warnDur: 1.25, fireDur: 1.1, ang: 0, sweepRate: 0, width: 28, hitR: 14 };
   boss.laserCooldown = 9.0;
@@ -555,7 +656,8 @@ function updateMenuBest(){
 function statsHTML(isPB){
   const pbTag = isPB ? `<span class="pb-badge">新纪录 PB!</span>` : "";
   const tiboText = tiboSaves > 0 ? ` · Tibo 救命 <b>×${tiboSaves}</b>` : "";
-  return `存活 <b>${fmtTime(elapsed)}</b> · 额度燃烧 <b>${(progress*100).toFixed(1)}%</b> ${pbTag}<br>` +
+  return `出战角色 <b>${char.icon} ${char.name}</b><br>` +
+         `存活 <b>${fmtTime(elapsed)}</b> · 额度燃烧 <b>${(progress*100).toFixed(1)}%</b> ${pbTag}<br>` +
          `拾取并发 <b>×${concs}</b> · 擦弹 <b>${grazes}</b> · 消弹 <b>${clearedCount}</b>${tiboText} · 躲过 <b>${dodged}</b> 只<br>` +
          `<div class="best-bar">历史最佳：额度 <b>${(records.maxProgress*100).toFixed(1)}%</b> · 存活 <b>${fmtTime(records.bestTime)}</b> · 最高擦弹 <b>${records.maxGraze}</b></div>`;
 }
@@ -563,6 +665,7 @@ function copyResult(){
   const reason = state === "win" ? "5 小时额度安全耗尽！顺利通关！" : (document.getElementById("overReason").textContent || "降智打击");
   const tiboLine = tiboSaves > 0 ? `🔄 Tibo 额度重置：${tiboSaves} 次\n` : "";
   const text = `🎮【鹈鹕大战 OpenAI · ASTRA 降智危机】\n` +
+               `👤 出战角色：${char.icon} ${char.name}\n` +
                `⏱️ 存活时间：${fmtTime(elapsed)}\n` +
                `🔥 额度燃烧：${(progress * 100).toFixed(1)}%\n` +
                `⚡ 并发拾取：×${concs}\n` +
@@ -887,31 +990,31 @@ function update(dt){
   for (let i = pickups.length - 1; i >= 0; i--){
     const p = pickups[i]; p.t += dt;
     if (p.t > p.life){ pickups.splice(i, 1); continue; }
-    if (Math.hypot(p.x - player.x, p.y - player.y) < 26 + player.r){
+    if (Math.hypot(p.x - player.x, p.y - player.y) < char.pickupR + player.r){
       pickups.splice(i, 1);
       if (p.type === "key"){
-        player.shields = Math.min(2, (player.shields || 0) + 1);
+        player.shields = Math.min(char.maxShields, (player.shields || 0) + 1);
         burst(p.x, p.y, "#ffd166", 18);
         floats.push({x: p.x, y: p.y - 22, txt: "🔑 API Key：获得护盾 +1！", t: 0, life: 1.6, color: "#ffd166"});
         beep(587, 0.12, "sine", 0.08); setTimeout(() => beep(880, 0.22, "sine", 0.09), 90);
       } else if (p.type === "temp0"){
-        boss.frozen = 3.2;
+        boss.frozen = char.freezeDur;
         boss.vx = boss.vy = 0;
         for (const b of bullets){ b.vx *= 0.4; b.vy *= 0.4; }
         burst(p.x, p.y, "#80f7ff", 22);
-        floats.push({x: p.x, y: p.y - 22, txt: "❄️ Temperature 0：模型冰冻 3 秒！", t: 0, life: 2.0, color: "#80f7ff"});
+        floats.push({x: p.x, y: p.y - 22, txt: `❄️ Temperature 0：模型冰冻 ${char.freezeDur.toFixed(1)} 秒！`, t: 0, life: 2.0, color: "#80f7ff"});
         beep(1046, 0.15, "triangle", 0.08); setTimeout(() => beep(1318, 0.25, "sine", 0.08), 80);
       } else if (p.type === "hallu"){
-        progress = Math.max(0, progress - 0.04);
+        progress = Math.max(0, progress - char.halluPenalty);
         player.slowTimer = 2.2;
         shake = Math.max(shake, 12);
         burst(p.x, p.y, "#ff5d73", 18);
-        floats.push({x: p.x, y: p.y - 22, txt: "⚠️ 模型幻觉！额度倒退 4% · 减速 2 秒！", t: 0, life: 2.0, color: "#ff5d73"});
+        floats.push({x: p.x, y: p.y - 22, txt: `⚠️ 模型幻觉！额度倒退 ${Math.round(char.halluPenalty * 100)}% · 减速 2 秒！`, t: 0, life: 2.0, color: "#ff5d73"});
         beep(140, 0.35, "sawtooth", 0.12, 60);
       } else {
         concs++;
-        progress = Math.min(1, progress + PICKUP_BONUS);
-        floats.push({x: p.x, y: p.y - 20, txt: "+5% 并发燃烧！", t: 0, life: 1.3, color: "#5ef2ff"});
+        progress = Math.min(1, progress + char.concBonus);
+        floats.push({x: p.x, y: p.y - 20, txt: `+${(char.concBonus * 100).toFixed(1)}% 并发燃烧！`, t: 0, life: 1.3, color: "#5ef2ff"});
         burst(p.x, p.y, "#5ef2ff", 16);
         beep(660, 0.1, "sine", 0.07, 990); setTimeout(()=>beep(990, 0.12, "sine", 0.05, 1320), 70);
         if (progress >= 1){ progress = 1; updateHUD(true); winGame(); return; }
@@ -954,9 +1057,9 @@ function update(dt){
     if (!b.grazed && dist < 54){
       b.grazed = true;
       grazes++;
-      energy = Math.min(100, energy + 14); // ~7-8 grazes = 1 full context clear
+      energy = Math.min(100, energy + char.grazeCharge);
       burst(player.x, player.y, "rgba(94,242,255,.9)", 4);
-      floats.push({x: player.x + rand(-15, 15), y: player.y - 18, txt: "+擦弹充能", t: 0, life: 0.6, color: "#8be9ff"});
+      floats.push({x: player.x + rand(-15, 15), y: player.y - 18, txt: `+擦弹充能 (${char.grazeCharge}%)`, t: 0, life: 0.6, color: "#8be9ff"});
     }
   }
   /* --- fx --- */
@@ -1194,16 +1297,14 @@ function render(){
     ctx.restore();
   }
 
-  /* player */
   /* player ghost trail */
   for (const g of player.ghosts){
     ctx.save(); ctx.translate(g.x, g.y);
-    ctx.globalAlpha = g.alpha;
-    ctx.fillStyle = "rgba(94,242,255,0.45)";
+    ctx.globalAlpha = g.alpha * 0.55;
+    ctx.fillStyle = char.color;
     ctx.beginPath(); ctx.arc(0, 0, player.r, 0, TAU); ctx.fill();
     ctx.restore();
   }
-
   /* player */
   if (state === "playing"){
     ctx.save(); ctx.translate(player.x, player.y);
@@ -1248,15 +1349,16 @@ function render(){
       ctx.closePath(); ctx.stroke();
       ctx.restore();
     }
-    ctx.shadowColor = "#5ef2ff"; ctx.shadowBlur = 18;
+    ctx.shadowColor = char.color; ctx.shadowBlur = 18;
     const pg = ctx.createRadialGradient(0, 0, 2, 0, 0, player.r);
-    pg.addColorStop(0, "#eaffff"); pg.addColorStop(0.55, "#5ef2ff"); pg.addColorStop(1, "rgba(94,242,255,.05)");
+    pg.addColorStop(0, "#ffffff"); pg.addColorStop(0.55, char.color); pg.addColorStop(1, "rgba(255,255,255,.05)");
     ctx.fillStyle = pg; ctx.beginPath(); ctx.arc(0, 0, player.r, 0, TAU); ctx.fill();
-    ctx.shadowBlur = 0; ctx.fillStyle = "#03303c";
-    ctx.font = "bold 11px 'Microsoft YaHei',sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-    ctx.fillText("你", 0, 1);
-    ctx.strokeStyle = "rgba(94,242,255,.35)"; ctx.lineWidth = 1.5;
+    ctx.shadowBlur = 0; ctx.fillStyle = "#031018";
+    ctx.font = "bold 10px 'Microsoft YaHei',sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText(char.tag, 0, 1);
+    ctx.strokeStyle = char.color; ctx.lineWidth = 1.5; ctx.globalAlpha = 0.45;
     ctx.beginPath(); ctx.arc(0, 0, player.r + 5 + Math.sin(elapsed * 5) * 2, 0, TAU); ctx.stroke();
+    ctx.globalAlpha = 1;
     ctx.restore();
   }
 
@@ -1430,6 +1532,10 @@ const tbEl = document.getElementById("touchBomb");
 if (tbEl) tbEl.onclick = triggerClearContext;
 const tdEl = document.getElementById("touchDash");
 if (tdEl) tdEl.onclick = triggerDash;
+document.querySelectorAll(".char-tab").forEach(tab => {
+  tab.onclick = () => selectCharacter(tab.getAttribute("data-char"));
+});
+updateCharUI();
 resize();
 show("menu");
 requestAnimationFrame(loop);
@@ -1458,7 +1564,9 @@ window.__game = {
   setTiboChance(c){ tiboChance = c; },
   kill(){ if (state === "playing") gameOver(); },
   start: startGame,
-  copy: copyResult
+  copy: copyResult,
+  get char(){ return char; },
+  selectChar: selectCharacter
 };
 </script>
 </body>
