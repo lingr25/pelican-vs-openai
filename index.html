@@ -766,10 +766,13 @@ function startGame(){
   clearedCount = 0; energy = 0; currentPhase = 1; phaseAnnounce = null;
   tiboSaves = 0; tiboPopup = null;
   thinkingZones = []; fableBeam = null; fablePopup = null; deepseekPopup = null; freeTokens = [];
+  bullets = []; pickups = []; particles = []; floats = []; shockwaves = [];
+  fireTimer = 1.5; pickupTimer = 4.0;
   player.speed = char.speed;
   player.hitR = char.hitR;
   player.shields = char.initShields;
-  player.invuln = 0; player.slowTimer = 0; boss.frozen = 0; boss.stunType = null; shockwaves = [];
+  player.invuln = 1.2;
+  player.slowTimer = 0; boss.frozen = 0; boss.stunType = null;
   player.dashCd = 0; player.dashT = 0; player.ghosts = [];
   boss.laser = { state: "idle", timer: 0, warnDur: 1.25, fireDur: 1.1, ang: 0, sweepRate: 0, width: 28, hitR: 14 };
   boss.laserCooldown = 9.0;
