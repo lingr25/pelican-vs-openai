@@ -958,11 +958,54 @@ function update(dt){
   player.x = clamp(player.x, ARENA.x + player.r, ARENA.x + ARENA.w - player.r);
   player.y = clamp(player.y, ARENA.y + player.r, ARENA.y + ARENA.h - player.r);
 
+  /* --- player & boss physical collision (bounce/repel) --- */
+  const pbDist = Math.hypot(player.x - boss.x, player.y - boss.y);
+  const minSep = boss.r + player.r + 2;
+  if (pbDist < minSep){
+    let nx = player.x - boss.x;
+    let ny = player.y - boss.y;
+    if (pbDist < 0.001){ nx = 0; ny = 1; }
+    else { nx /= pbDist; ny /= pbDist; }
+
+    // Repel player outside boss boundary immediately
+    player.x = boss.x + nx * minSep;
+    player.y = boss.y + ny * minSep;
+    player.x = clamp(player.x, ARENA.x + player.r, ARENA.x + ARENA.w - player.r);
+    player.y = clamp(player.y, ARENA.y + player.r, ARENA.y + ARENA.h - player.r);
+
+    // Offset mouse target if active so mouse follower doesn't stick inside boss
+    if (mouse.active){
+      mouse.x = player.x + nx * 18;
+      mouse.y = player.y + ny * 18;
+    }
+
+    // Bounce impact recoil
+    player.dashVx = nx * 340;
+    player.dashVy = ny * 340;
+    player.dashT = 0.12;
+
+    // Boss slight reaction recoil
+    boss.vx -= nx * 45;
+    boss.vy -= ny * 45;
+
+    shake = Math.max(shake, 10);
+    burst((boss.x + player.x)/2, (boss.y + player.y)/2, "#5ef2ff", 10);
+
+    boss.bounceCd = (boss.bounceCd || 0) - dt;
+    if (boss.bounceCd <= 0){
+      boss.bounceCd = 0.55;
+      beep(280, 0.08, "triangle", 0.08, 140);
+      floats.push({x: player.x, y: player.y - 25, txt: "⚡ 撞击斥力弹开！", t: 0, life: 1.1, color: "#ffd166"});
+    }
+  } else {
+    boss.bounceCd = (boss.bounceCd || 0) - dt;
+  }
+
   /* --- boss wander & firing --- */
   if (boss.frozen > 0){
     boss.vx = 0; boss.vy = 0;
   } else {
-    const targetConc = pickups.find(p => p.type === "conc" && p.t >= 10);
+    const targetConc = pickups.find(p => p.type === "conc" && p.t >= 5);
     if (targetConc){
       boss.tx = targetConc.x;
       boss.ty = targetConc.y;
@@ -1103,8 +1146,8 @@ function update(dt){
       continue;
     }
 
-    // Boss steals concurrency if t >= 10 and touches it
-    if (p.type === "conc" && p.t >= 10 && Math.hypot(p.x - boss.x, p.y - boss.y) < boss.r + 20){
+    // Boss steals concurrency if t >= 5 and touches it
+    if (p.type === "conc" && p.t >= 5 && Math.hypot(p.x - boss.x, p.y - boss.y) < boss.r + 20){
       pickups.splice(i, 1);
       burst(p.x, p.y, "#ff4070", 24);
       burst(boss.x, boss.y, "#ffd166", 16);
@@ -1129,7 +1172,7 @@ function update(dt){
 
     // Player collects pickup
     if (Math.hypot(p.x - player.x, p.y - player.y) < char.pickupR + player.r){
-      const wasStealing = (p.type === "conc" && p.t >= 10);
+      const wasStealing = (p.type === "conc" && p.t >= 5);
       if (boss.stealingTarget === p){
         boss.stealingTarget = null;
         boss.taunt = "可恶！我的并发被你截胡了！";
@@ -1450,7 +1493,7 @@ function render(){
       ctx.fillText("Fable 5.1", 0, 33);
     } else {
       // ⚡ 并发 spinner
-      const isDanger = p.t >= 10;
+      const isDanger = p.t >= 5;
       if (isDanger){
         const warnPulse = Math.sin(p.t * 12);
         ctx.strokeStyle = warnPulse > 0 ? "rgba(255,80,100,0.9)" : "rgba(255,200,80,0.8)";
