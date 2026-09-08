@@ -609,6 +609,7 @@ function triggerFableBeam(){
     quote: "“根据最新宪法与混合推理评估：当前战局鹈鹕密度严重超标，已启动 Artifacts 实时消弹协议。”"
   };
   boss.frozen = 4.0;
+  boss.stunType = "fable";
   boss.vy = -380;
   boss.rage = 0;
   boss.rageWarn = 0;
@@ -650,6 +651,7 @@ function triggerDeepSeek(){
     quote: "“<think> 正在执行 DeepSeek-V4 全局开源蒸馏：敌方鹈鹕弹幕已全量格式化为免费 Token </think>”"
   };
   boss.frozen = 3.6;
+  boss.stunType = "deepseek";
   boss.vy = -340;
   boss.rage = 0; boss.rageWarn = 0;
   if (boss.laser){ boss.laser.state = "idle"; boss.laser.timer = 0; boss.laserCooldown = rand(9, 14); }
@@ -767,8 +769,7 @@ function startGame(){
   player.speed = char.speed;
   player.hitR = char.hitR;
   player.shields = char.initShields;
-  player.maxShields = char.maxShields;
-  player.invuln = 0; player.slowTimer = 0; boss.frozen = 0; shockwaves = [];
+  player.invuln = 0; player.slowTimer = 0; boss.frozen = 0; boss.stunType = null; shockwaves = [];
   player.dashCd = 0; player.dashT = 0; player.ghosts = [];
   boss.laser = { state: "idle", timer: 0, warnDur: 1.25, fireDur: 1.1, ang: 0, sweepRate: 0, width: 28, hitR: 14 };
   boss.laserCooldown = 9.0;
@@ -1321,6 +1322,7 @@ function update(dt){
         beep(587, 0.12, "sine", 0.08); setTimeout(() => beep(880, 0.22, "sine", 0.09), 90);
       } else if (p.type === "temp0"){
         boss.frozen = char.freezeDur;
+        boss.stunType = "temp0";
         boss.vx = boss.vy = 0;
         for (const b of bullets){ b.vx *= 0.4; b.vy *= 0.4; }
         burst(p.x, p.y, "#80f7ff", 22);
@@ -1780,21 +1782,26 @@ function render(){
     const pulse = 1 + Math.sin(elapsed * 3) * 0.04 + (boss.rage > 0 ? 0.1 : 0);
     ctx.rotate(Math.sin(boss.rot) * 0.15);
     ctx.globalCompositeOperation = "screen";
-    ctx.shadowColor = boss.frozen > 0 ? "#80f7ff" : (boss.rage > 0 ? "#ff5d73" : "#7aa2ff");
-    ctx.shadowBlur = boss.frozen > 0 ? 40 : (boss.rage > 0 ? 55 : 34);
+    const isFableStun = boss.frozen > 0 && boss.stunType === "fable";
+    const isDeepSeekStun = boss.frozen > 0 && boss.stunType === "deepseek";
+    const stunColor = isFableStun ? "#ff8c42" : (isDeepSeekStun ? "#4D6BFE" : "#80f7ff");
+    const stunStroke = isFableStun ? "rgba(255,140,66,0.9)" : (isDeepSeekStun ? "rgba(77,107,254,0.9)" : "rgba(128,247,255,0.85)");
+
+    ctx.shadowColor = boss.frozen > 0 ? stunColor : (boss.rage > 0 ? "#ff5d73" : "#7aa2ff");
+    ctx.shadowBlur = boss.frozen > 0 ? 44 : (boss.rage > 0 ? 55 : 34);
     const bw = boss.r * 2.5 * pulse, bh = bw * (bossImg.height / bossImg.width);
     if (boss.rageWarn > 0 && Math.sin(elapsed * 30) > 0) ctx.globalAlpha = 0.55;
     ctx.drawImage(bossImg, -bw/2, -bh/2, bw, bh);
     if (boss.frozen > 0){
-      ctx.strokeStyle = "rgba(128,247,255,0.85)"; ctx.lineWidth = 3;
+      ctx.strokeStyle = stunStroke; ctx.lineWidth = 3;
       ctx.strokeRect(-bw/2 - 4, -bh/2 - 4, bw + 8, bh + 8);
     }
     ctx.restore();
     /* name + taunt */
-    ctx.save(); ctx.textAlign = "center";
+    ctx.save(); ctx.textAlign = "center"; ctx.textBaseline = "middle";
     ctx.font = "bold 12px 'Microsoft YaHei',sans-serif";
-    ctx.fillStyle = boss.frozen > 0 ? "#80f7ff" : (boss.rage > 0 ? "#ff8ba0" : "#9fc2ff");
-    const freezeTag = boss.frozen > 0 ? ` [❄️ 冰冻 ${boss.frozen.toFixed(1)}s]` : "";
+    ctx.fillStyle = boss.frozen > 0 ? stunColor : (boss.rage > 0 ? "#ff8ba0" : "#9fc2ff");
+    const freezeTag = boss.frozen > 0 ? (isFableStun ? ` [⚡ Fable 压制 ${boss.frozen.toFixed(1)}s]` : (isDeepSeekStun ? ` [🐋 蒸馏压制 ${boss.frozen.toFixed(1)}s]` : ` [❄️ 冰冻 ${boss.frozen.toFixed(1)}s]`)) : "";
     ctx.fillText("ASTRA · 超级大旗舰（已降智）" + freezeTag, boss.x, boss.y - boss.r - 26);
     if (boss.taunt){
       ctx.font = "12px 'Microsoft YaHei',sans-serif";
@@ -1991,8 +1998,8 @@ function render(){
   /* Claude Fable 5.1 aid popup */
   if (fablePopup){
     const fp = fablePopup;
-    const a = fp.t < 0.35 ? fp.t / 0.35 : (fp.t > fp.life - 0.4 ? (fp.life - fp.t) / 0.4 : 1);
-    const scale = fp.t < 0.35 ? easeOutBack(fp.t / 0.35) : 1;
+    const a = fp.t < 0.35 ? fp.t / 0.35 : (fp.t > fp.life - 0.35 ? Math.max(0, (fp.life - fp.t) / 0.35) : 1);
+    const scale = fp.t < 0.35 ? easeOutBack(fp.t / 0.35) : (fp.t > fp.life - 0.35 ? Math.max(0, (fp.life - fp.t) / 0.35) : 1);
     ctx.save();
     ctx.globalAlpha = clamp(a, 0, 1);
 
@@ -2004,7 +2011,7 @@ function render(){
 
     ctx.translate(W/2, H/2);
     ctx.scale(scale, scale);
-    const cw = Math.min(W - 44, 540), ch = 240;
+    const cw = Math.min(W - 44, 520), ch = 236;
     ctx.fillStyle = "rgba(18,12,10,0.96)";
     ctx.strokeStyle = "rgba(255,140,66,0.9)";
     ctx.lineWidth = 2.5;
@@ -2023,23 +2030,28 @@ function render(){
       ctx.drawImage(claudeSprite, -avatarSize/2, avatarY - avatarSize/2, avatarSize, avatarSize);
       ctx.restore();
     }
+
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.font = "bold 18px 'Microsoft YaHei',sans-serif";
+    ctx.fillStyle = "#ff8c42";
     ctx.fillText("⚡ CLAUDE FABLE 5.1 · 混合推理援军参战！", 0, avatarY + avatarSize/2 + 24);
 
-    ctx.font = "italic bold 14px 'Segoe UI','Microsoft YaHei',sans-serif";
+    ctx.font = "italic bold 13.5px 'Segoe UI','Microsoft YaHei',sans-serif";
     ctx.fillStyle = "#ffe4cc";
     ctx.fillText(fp.quote, 0, avatarY + avatarSize/2 + 48);
 
     ctx.font = "12px 'Microsoft YaHei',sans-serif";
     ctx.fillStyle = "#fbcfe8";
-    ctx.fillText("Anthropic 最强混合推理旗舰光束净化全场 · 鹈鹕弹幕已被 Artifacts 格式化消弹！", 0, avatarY + avatarSize/2 + 72);
+    ctx.fillText("Anthropic 混合推理光束 · 全场鹈鹕弹幕已被 Artifacts 格式化消弹！", 0, avatarY + avatarSize/2 + 70);
     ctx.restore();
   }
 
   /* DeepSeek V4 popup */
   if (deepseekPopup){
     const dp = deepseekPopup;
-    const a = dp.t < 0.35 ? dp.t / 0.35 : (dp.t > dp.life - 0.4 ? (dp.life - dp.t) / 0.4 : 1);
-    const scale = dp.t < 0.35 ? easeOutBack(dp.t / 0.35) : 1;
+    const a = dp.t < 0.35 ? dp.t / 0.35 : (dp.t > dp.life - 0.35 ? Math.max(0, (dp.life - dp.t) / 0.35) : 1);
+    const scale = dp.t < 0.35 ? easeOutBack(dp.t / 0.35) : (dp.t > dp.life - 0.35 ? Math.max(0, (dp.life - dp.t) / 0.35) : 1);
     ctx.save();
     ctx.globalAlpha = clamp(a, 0, 1);
 
