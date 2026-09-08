@@ -147,15 +147,10 @@
   <div class="card">
     <div class="bossline"><img id="menuBoss" alt="astra"><span>ASTRA · 超级大旗舰（已降智）</span></div>
     <h1>鹈 鹕 大 战 OPENAI</h1>
-    <div class="sub">OpenAI 最新超级大旗舰 <b>ASTRA</b> 疯狂降智，如今只会输出看一次笑一次的鹈鹕。<br>
-      它正在你的会话里游荡 —— 躲开它喷射的鹈鹕，<b>把 5 小时额度安全耗尽</b>，一次都别用到它。</div>
+    <div class="sub">躲避降智鹈鹕，<b>把 5 小时额度安全耗尽</b>。</div>
     <div class="rules">
-      · 额度随时间自然燃烧，<em>约 5 分钟</em>耗尽（0% → 100% 即胜利）<br>
-      · 拾取道具：<em class="cy">「并发」+5%进度（10秒不捡Boss会抢！）</em>、<em style="color:#ff8c42">「Fable 5.1」召唤天顶神圣光束净化全屏</em>、<em style="color:var(--gold)">「API Key」护盾保命</em>、<em style="color:#80f7ff">「Temp 0」冰冻 Boss</em>；小心 <em style="color:var(--red)">「幻觉」倒扣额度减速</em>！<br>
-      · <em class="cy">擦弹 (Graze)</em> 充能，满 100% 按 <em class="cy">SPACE / 点击按钮</em> 释放<b>「清空上下文」</b>全屏消弹！<br>
-      · 致命一击？有几率触发 <em class="cy">Tibo 降临</em>：免除暴毙，但 5 小时额度<b>重置回 100%</b>！<br>
-      · 移动操控：鼠标 / 触控 / WASD，<em>SHIFT / 跃迁按钮</em> 闪避冲刺（自带无敌帧），<em>SPACE</em> 清空上下文，<em>P</em> 暂停，<em>M</em> 开关音乐音效<br>
-      <small style="display:block;margin-top:6px;color:#6b7f9f;font-size:10px">🎵 BGM: "8bit Action Boss Battle" by MintoDog (CC0 Public Domain)</small>
+      · 拾取战利品加速额度燃烧，小心「模型幻觉」！<br>
+      · 鼠标 / 触控 / WASD 移动 · <em>SPACE</em> 清屏 · <em>SHIFT</em> 闪避
     </div>
     <div class="char-picker">
       <div class="char-picker-title">选择出战角色</div>
@@ -340,7 +335,7 @@ const CHARACTERS = {
     icon: "👔",
     color: "#5ef2ff",
     tag: "提词",
-    desc: "<b>【大招流】</b>擦弹充能 +43%（约 5 次擦满）；清屏击退距离 +21%。均衡万金油。",
+    desc: "<b>大招流</b>：擦弹充能更快，清屏击退更远。均衡万金油。",
     speed: 340,
     hitR: 7,
     initShields: 0,
@@ -360,7 +355,7 @@ const CHARACTERS = {
     icon: "🧥",
     color: "#ffd166",
     tag: "老黄",
-    desc: "<b>【算力教皇】</b>开局自带 1 层护盾（上限扩充至 3 层）；液氮散热：冰冻长达 5 秒；买越多省越多：并发 +6.5%。",
+    desc: "<b>算力教皇</b>：自带 1 层护盾，冰冻长达 5 秒，并发收益 +30%。",
     speed: 330,
     hitR: 7,
     initShields: 1,
@@ -380,7 +375,7 @@ const CHARACTERS = {
     icon: "☕",
     color: "#ff5d73",
     tag: "红温",
-    desc: "<b>【高敏刺客】</b>基础移速 410 (+21%)；跃迁冷却只要 2.2 秒；吸附范围 32px。代价：误触幻觉倒扣 8% 且判定 8px。",
+    desc: "<b>高敏刺客</b>：移速极快 (+21%)，闪避冷却只要 2.2 秒。",
     speed: 410,
     hitR: 8,
     initShields: 0,
@@ -400,7 +395,7 @@ const CHARACTERS = {
     icon: "📜",
     color: "#ff8c42",
     tag: "Fable",
-    desc: "<b>【Fable 5.1 混合推理】</b>绝不降智：触发「模型幻觉」免疫减速并<b>净化转化为 +3% 额度</b>！跃迁留下「思维链领域」使穿过弹幕减速 78%。",
+    desc: "<b>混合推理</b>：免疫「模型幻觉」并转化为额度，闪避留下思维链减速场。",
     speed: 355,
     hitR: 7,
     initShields: 0,
@@ -1626,13 +1621,26 @@ function render(){
       ctx.closePath(); ctx.stroke();
       ctx.restore();
     }
-    ctx.shadowColor = char.color; ctx.shadowBlur = 18;
-    const pg = ctx.createRadialGradient(0, 0, 2, 0, 0, player.r);
-    pg.addColorStop(0, "#ffffff"); pg.addColorStop(0.55, char.color); pg.addColorStop(1, "rgba(255,255,255,.05)");
-    ctx.fillStyle = pg; ctx.beginPath(); ctx.arc(0, 0, player.r, 0, TAU); ctx.fill();
-    if (char.id === "anthropic" && claudeImg.complete && claudeImg.naturalWidth){
-      ctx.drawImage(claudeImg, -player.r, -player.r, player.r * 2, player.r * 2);
+    if (char.id === "anthropic"){
+      ctx.save();
+      ctx.shadowColor = "rgba(255,140,66,0.85)"; ctx.shadowBlur = 12;
+      const size = player.r * 2.5;
+      if (claudeImg.complete && claudeImg.naturalWidth){
+        ctx.drawImage(claudeImg, -size/2, -size/2, size, size);
+      } else {
+        ctx.fillStyle = "#ff8c42";
+        ctx.font = "bold 11px 'Microsoft YaHei',sans-serif";
+        ctx.textAlign = "center"; ctx.textBaseline = "middle";
+        ctx.fillText("Fable", 0, 1);
+      }
+      ctx.shadowBlur = 0; ctx.fillStyle = "#ffffff";
+      ctx.beginPath(); ctx.arc(0, 0, 2.5, 0, TAU); ctx.fill();
+      ctx.restore();
     } else {
+      ctx.shadowColor = char.color; ctx.shadowBlur = 18;
+      const pg = ctx.createRadialGradient(0, 0, 2, 0, 0, player.r);
+      pg.addColorStop(0, "#ffffff"); pg.addColorStop(0.55, char.color); pg.addColorStop(1, "rgba(255,255,255,.05)");
+      ctx.fillStyle = pg; ctx.beginPath(); ctx.arc(0, 0, player.r, 0, TAU); ctx.fill();
       ctx.shadowBlur = 0; ctx.fillStyle = "#031018";
       ctx.font = "bold 10px 'Microsoft YaHei',sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
       ctx.fillText(char.tag, 0, 1);
