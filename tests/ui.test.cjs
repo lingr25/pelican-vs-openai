@@ -30,7 +30,8 @@ test('combat controls are hidden in the menu and on the result screen', async ()
     await page.evaluate(() => window.__game.kill());
     await page.locator('#over:not(.hide)').waitFor();
     assert.equal(await page.locator('#touchBomb').isVisible(), false);
-    await page.locator('#btnRetry').click();
+    await page.locator('#btnRetry').focus();
+    await page.keyboard.press('r');
     assert.equal(await page.evaluate(() => window.__game.state), 'playing');
   } finally { await page.close(); }
 });
@@ -87,7 +88,7 @@ test('portable build reaches victory and restarts with no browser errors', async
   try {
     await page.goto(url + '/portable.html');
     await page.locator('#btnStart').click();
-    await page.evaluate(() => { window.__game.addEnergy(100); window.__game.bomb(); window.__game.win(); });
+    await page.evaluate(() => { window.__game.addEnergy(100); window.__game.bomb(); window.__game.setProgress(1); window.__game.win(); });
     await page.locator('#win:not(.hide)').waitFor();
     await page.locator('#btnAgain').click();
     assert.equal(await page.evaluate(() => window.__game.state), 'playing');
@@ -101,7 +102,7 @@ test('the HUD keeps refreshing time and quota during combat', async () => {
     await page.goto(url);
     await page.locator('#btnStart').click();
     await page.evaluate(() => { window.__game.freezeBoss(60); window.__game.setProgress(0.25); });
-    await page.waitForTimeout(1300);
+    await page.waitForFunction(() => document.querySelector('#tAlive').textContent !== '0:00', null, { timeout: 4000 });
     assert.notEqual(await page.locator('#tAlive').textContent(), '0:00');
     assert.ok(parseFloat(await page.locator('#pct').textContent()) >= 25);
   } finally { await page.close(); }
