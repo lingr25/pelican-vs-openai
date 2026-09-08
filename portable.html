@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
-<title>鹈鹕大战 OpenAI · ASTRA 降智危机</title>
+<title>鹈鹕大战ASTRA</title>
 <style>
 /* Deep space: local CJK pixel type, near-black glass, silver starlight. */
 @font-face{
@@ -88,6 +88,23 @@ body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:2;opac
 }
 @media(min-width:721px) and (max-height:850px){.ovl{align-items:flex-start}.card{margin:auto 0}.title-stage{min-height:310px;padding-top:25px}.title-art{height:310px}.menu-card h1{font-size:48px}.menu-card h1>span{font-size:60px}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important}}
+
+/* Transparent cycling vignette over the existing Astra galaxy. */
+.cycling-art{width:440px;right:12px;height:350px;isolation:isolate}
+.cycling-art .astra-art{position:absolute;inset:-15px 0 auto 0;height:310px;opacity:.38;z-index:-1;object-fit:contain;
+  transform-origin:50% 56%;animation:galaxy-orbit 56s linear infinite,galaxy-depth 14s ease-in-out infinite;will-change:transform}
+/* Independent rotation and scale keep the centre fixed and both loops seamless. */
+@keyframes galaxy-orbit{from{rotate:0deg}to{rotate:360deg}}
+@keyframes galaxy-depth{0%,100%{scale:.96}50%{scale:1.06}}
+body:not([data-screen="menu"]) .cycling-art .astra-art{animation-play-state:paused}
+.cycling-scene{display:block;width:100%;height:100%;overflow:hidden}
+@media(min-width:721px) and (max-width:1050px){.cycling-art{width:365px;right:0;opacity:1}.cycling-art .astra-art{height:280px}}
+@media(max-width:720px){
+  .title-stage{padding-bottom:8px}
+  .cycling-art{position:relative;inset:auto;width:100%;height:auto;aspect-ratio:480/330;opacity:1;margin-top:-10px}
+  .cycling-art .astra-art{inset:0;width:100%;height:90%;opacity:.32}
+  .cycling-scene{position:absolute;inset:0}
+}
 </style>
 <!-- Fusion Pixel Font; SIL Open Font License 1.1
 Fusion Pixel Font
@@ -527,12 +544,66 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
     <section class="title-stage">
       <div class="title-copy">
         <div class="eyebrow">DEEP SPACE · SURVIVAL</div>
-        <h1 id="gameTitle">鹈鹕大战<span>OPEN<span class="title-ai">AI</span><sup>降智危机</sup></span></h1>
+        <h1 id="gameTitle">鹈鹕大战<span>ASTRA<sup>降智危机</sup></span></h1>
         <div class="title-rule"><span>ASTRA CRISIS</span><i></i><span>01</span></div>
         <p class="sub">满屏都是降智，走位保持清醒。<br>躲过弹幕，把 <b>5 小时额度</b> 安全耗尽。</p>
         <div class="bossline"><img id="menuBoss" alt="ASTRA"><span>本关首领 <b>ASTRA</b></span><span class="boss-tag">超级大旗舰 · 已降智</span></div>
       </div>
-      <div class="title-art"><img id="astraHero" class="astra-art" alt="GPT-6 Astra · 星系组成的数字 6" width="560" height="470"><span class="art-caption">GPT-6 ASTRA</span><span class="art-side">星系之中 · ASTRA</span></div>
+      <div class="title-art cycling-art">
+        <img id="astraHero" class="astra-art" alt="" aria-hidden="true" width="560" height="470">
+        <svg id="cyclingScene" class="cycling-scene" viewBox="0 0 480 360" role="img" aria-labelledby="cyclistTitle">
+  <title id="cyclistTitle">星系前，一只鹈鹕不停踩着自行车，沿简易马路向前骑行</title>
+  <!-- Transparent scene: only the rider, bicycle, road and passing sign. -->
+  <g fill="none" stroke="#9295a5" stroke-linecap="round">
+    <path d="M24 312H456" stroke-opacity=".5"/>
+    <path d="M-24 330H504" stroke-opacity=".22" stroke-dasharray="18 30"><animate attributeName="stroke-dashoffset" from="0" to="48" dur="1.2s" repeatCount="indefinite"/></path>
+  </g>
+  <g stroke="#a7abb9" stroke-width="2" stroke-linejoin="round">
+    <path d="M397 311V233"/>
+    <path d="M374 212H411L424 225L411 238H374Z" fill="#0d0d14"/>
+    <path d="M384 225H411 M404 219L411 225L404 231" fill="none"/>
+    <animateTransform attributeName="transform" type="translate" from="110 0" to="-500 0" dur="8s" repeatCount="indefinite"/>
+  </g>
+  <!-- The far leg sits behind the frame. -->
+  <path d="M209 201L236 227L224 273" fill="none" stroke="#797c8c" stroke-width="7" stroke-linecap="round" stroke-linejoin="round">
+    <animate attributeName="d" values="M209 201 L241.89 231.71 L224.00 273.00;M209 201 L245.60 227.18 L225.14 267.26;M209 201 L248.68 222.23 L228.39 262.39;M209 201 L250.79 217.70 L233.26 259.14;M209 201 L251.81 214.86 L239.00 258.00;M209 201 L251.86 214.71 L244.74 259.14;M209 201 L250.90 217.41 L249.61 262.39;M209 201 L248.55 222.47 L252.86 267.26;M209 201 L244.16 229.09 L254.00 273.00;M209 201 L235.95 237.04 L252.86 278.74;M209 201 L229.30 242.30 L249.61 283.61;M209 201 L226.87 243.93 L244.74 286.86;M209 201 L224.00 244.50 L239.00 288.00;M209 201 L226.82 242.32 L233.26 286.86;M209 201 L233.30 238.87 L228.39 283.61;M209 201 L237.82 235.56 L225.14 278.74;M209 201 L241.89 231.71 L224.00 273.00" dur="1.2s" repeatCount="indefinite"/>
+  </path>
+  <g transform="translate(156 273)"><circle r="37" fill="#09090e" fill-opacity=".48" stroke="#999daa" stroke-width="3"/><circle r="32" fill="none" stroke="#444855" stroke-width="1"/>
+<g stroke="#9fa4b5" stroke-width="1.2" opacity=".8"><path d="M-32 0H32 M0-32V32 M-22.6-22.6L22.6 22.6 M-22.6 22.6L22.6-22.6"/><animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="1.2s" repeatCount="indefinite"/></g><circle r="4" fill="#d8dbe7"/></g><g transform="translate(303 273)"><circle r="37" fill="#09090e" fill-opacity=".48" stroke="#999daa" stroke-width="3"/><circle r="32" fill="none" stroke="#444855" stroke-width="1"/>
+<g stroke="#9fa4b5" stroke-width="1.2" opacity=".8"><path d="M-32 0H32 M0-32V32 M-22.6-22.6L22.6 22.6 M-22.6 22.6L22.6-22.6"/><animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="1.2s" repeatCount="indefinite"/></g><circle r="4" fill="#d8dbe7"/></g>
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M156 273L205 222L239 273H156 M205 222H285L239 273 M285 222L303 273" stroke="#b4b9cb" stroke-width="4"/>
+    <path d="M239 273L229 265 M205 222L199 202 M285 222L281 197Q280 190 289 190H305" stroke="#dadde7" stroke-width="3"/>
+    <path d="M185 202H211" stroke="#c8ccd8" stroke-width="6"/>
+    <path d="M298 190H310" stroke="#8d92a6" stroke-width="5"/>
+    <circle cx="239" cy="273" r="11" stroke="#c6cad8" stroke-width="2"/>
+    <path d="M157 267L239 262 M157 279L239 284" stroke="#777d92" stroke-width="1"/>
+  </g>
+  <g transform="translate(239 273)" stroke="#e1e3ec" stroke-width="3"><path d="M-15 0H15"/><animateTransform attributeName="transform" type="rotate" from="0 0 0" to="360 0 0" dur="1.2s" repeatCount="indefinite" additive="sum"/></g>
+  <g fill="#8e8a83"><path d="M-6-2L5-3L13 3H-6Z"/><animateTransform attributeName="transform" type="translate" values="224.00 273.00;225.14 267.26;228.39 262.39;233.26 259.14;239.00 258.00;244.74 259.14;249.61 262.39;252.86 267.26;254.00 273.00;252.86 278.74;249.61 283.61;244.74 286.86;239.00 288.00;233.26 286.86;228.39 283.61;225.14 278.74;224.00 273.00" dur="1.2s" repeatCount="indefinite"/></g>
+  <path d="M209 201L248 226L254 273" fill="none" stroke="#bfb6a1" stroke-width="7" stroke-linecap="round" stroke-linejoin="round">
+    <animate attributeName="d" values="M209 201 L244.16 229.09 L254.00 273.00;M209 201 L235.95 237.04 L252.86 278.74;M209 201 L229.30 242.30 L249.61 283.61;M209 201 L226.87 243.93 L244.74 286.86;M209 201 L224.00 244.50 L239.00 288.00;M209 201 L226.82 242.32 L233.26 286.86;M209 201 L233.30 238.87 L228.39 283.61;M209 201 L237.82 235.56 L225.14 278.74;M209 201 L241.89 231.71 L224.00 273.00;M209 201 L245.60 227.18 L225.14 267.26;M209 201 L248.68 222.23 L228.39 262.39;M209 201 L250.79 217.70 L233.26 259.14;M209 201 L251.81 214.86 L239.00 258.00;M209 201 L251.86 214.71 L244.74 259.14;M209 201 L250.90 217.41 L249.61 262.39;M209 201 L248.55 222.47 L252.86 267.26;M209 201 L244.16 229.09 L254.00 273.00" dur="1.2s" repeatCount="indefinite"/>
+  </path>
+  <g fill="#c9b99c" stroke="#4c4b52" stroke-width="1.2"><path d="M-6-3L5-4L15 3H-6Z"/><animateTransform attributeName="transform" type="translate" values="254.00 273.00;252.86 278.74;249.61 283.61;244.74 286.86;239.00 288.00;233.26 286.86;228.39 283.61;225.14 278.74;224.00 273.00;225.14 267.26;228.39 262.39;233.26 259.14;239.00 258.00;244.74 259.14;249.61 262.39;252.86 267.26;254.00 273.00" dur="1.2s" repeatCount="indefinite"/></g>
+  <g class="pelican-rider" stroke="#555866" stroke-width="2" stroke-linejoin="round">
+    <!-- Tail, body and the distinctive long pelican neck. -->
+    <path d="M181 174L146 158L153 181L138 180L168 197" fill="#a8adbf"/>
+    <path d="M164 175C166 153 188 143 215 151C230 156 239 162 248 158C266 149 255 128 257 112C260 91 281 89 294 101C303 110 299 124 288 133C278 142 291 163 274 183C261 198 238 208 213 207C185 208 165 196 164 175Z" fill="#e1e4ed"/>
+    <path d="M180 181C188 199 214 203 234 193C224 192 214 185 210 177" fill="#bdc3d3" stroke="none"/>
+    <!-- Throat pouch and long beak. -->
+    <path d="M288 120L367 128Q344 153 309 146Q290 142 288 120Z" fill="#a8a9b5"/>
+    <path d="M287 112L373 126L288 125Z" fill="#d4c7ac"/>
+    <path d="M290 121L363 127" fill="none" stroke="#8f887b" stroke-width="1.2"/>
+    <circle cx="284" cy="107" r="3.5" fill="#12131b" stroke="none"/>
+    <circle cx="285" cy="106" r="1" fill="#fff" stroke="none"/>
+    <path d="M264 98L259 91M270 95L269 88" stroke="#e1e4ed" stroke-width="3"/>
+    <!-- A folded wing reaches toward the handlebars. -->
+    <path d="M194 162Q214 157 237 173L279 187Q286 188 287 193Q279 199 272 194L224 185Q209 187 194 177" fill="#cbd0df"/>
+    <path d="M207 171L235 181 M213 166L240 177" stroke="#9ca4ba" stroke-width="1.3"/>
+    <animateTransform attributeName="transform" type="translate" values="0 0;0 1.8;0 0;0 1.8;0 0" dur="1.2s" repeatCount="indefinite"/>
+  </g>
+</svg>
+      </div>
     </section>
     <section class="char-picker" aria-label="选择出战角色">
       <div class="section-label"><span><b>01</b> 选择出战角色</span><span>SELECT YOUR PLAYER</span></div>
@@ -1204,7 +1275,14 @@ function show(id){
   if (td) td.classList.toggle("hide", id !== null);
   document.getElementById("hud").style.display = id === "menu" ? "none" : "flex";
   document.body.dataset.screen = id || "playing";
+  syncCyclistMotion();
   if (id === "menu") updateMenuBest();
+}
+function syncCyclistMotion(){
+  const scene = document.getElementById("cyclingScene");
+  if (!scene) return;
+  if (reducedMotion.matches || document.body.dataset.screen !== "menu") scene.pauseAnimations();
+  else scene.unpauseAnimations();
 }
 function updateMenuBest(){
   const mb = document.getElementById("menuBest");
@@ -1447,6 +1525,7 @@ function buildStars(){
 
 const spaceBackdrop = document.createElement("canvas");
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+reducedMotion.addEventListener("change", syncCyclistMotion);
 function buildSpaceBackdrop(){
   spaceBackdrop.width = Math.ceil(W / 2); spaceBackdrop.height = Math.ceil(H / 2);
   const sky = spaceBackdrop.getContext("2d");

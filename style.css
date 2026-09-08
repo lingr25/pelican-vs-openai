@@ -81,3 +81,20 @@ body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:2;opac
 }
 @media(min-width:721px) and (max-height:850px){.ovl{align-items:flex-start}.card{margin:auto 0}.title-stage{min-height:310px;padding-top:25px}.title-art{height:310px}.menu-card h1{font-size:48px}.menu-card h1>span{font-size:60px}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important}}
+
+/* Transparent cycling vignette over the existing Astra galaxy. */
+.cycling-art{width:440px;right:12px;height:350px;isolation:isolate}
+.cycling-art .astra-art{position:absolute;inset:-15px 0 auto 0;height:310px;opacity:.38;z-index:-1;object-fit:contain;
+  transform-origin:50% 56%;animation:galaxy-orbit 56s linear infinite,galaxy-depth 14s ease-in-out infinite;will-change:transform}
+/* Independent rotation and scale keep the centre fixed and both loops seamless. */
+@keyframes galaxy-orbit{from{rotate:0deg}to{rotate:360deg}}
+@keyframes galaxy-depth{0%,100%{scale:.96}50%{scale:1.06}}
+body:not([data-screen="menu"]) .cycling-art .astra-art{animation-play-state:paused}
+.cycling-scene{display:block;width:100%;height:100%;overflow:hidden}
+@media(min-width:721px) and (max-width:1050px){.cycling-art{width:365px;right:0;opacity:1}.cycling-art .astra-art{height:280px}}
+@media(max-width:720px){
+  .title-stage{padding-bottom:8px}
+  .cycling-art{position:relative;inset:auto;width:100%;height:auto;aspect-ratio:480/330;opacity:1;margin-top:-10px}
+  .cycling-art .astra-art{inset:0;width:100%;height:90%;opacity:.32}
+  .cycling-scene{position:absolute;inset:0}
+}

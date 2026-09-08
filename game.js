@@ -620,7 +620,14 @@ function show(id){
   if (td) td.classList.toggle("hide", id !== null);
   document.getElementById("hud").style.display = id === "menu" ? "none" : "flex";
   document.body.dataset.screen = id || "playing";
+  syncCyclistMotion();
   if (id === "menu") updateMenuBest();
+}
+function syncCyclistMotion(){
+  const scene = document.getElementById("cyclingScene");
+  if (!scene) return;
+  if (reducedMotion.matches || document.body.dataset.screen !== "menu") scene.pauseAnimations();
+  else scene.unpauseAnimations();
 }
 function updateMenuBest(){
   const mb = document.getElementById("menuBest");
@@ -863,6 +870,7 @@ function buildStars(){
 
 const spaceBackdrop = document.createElement("canvas");
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+reducedMotion.addEventListener("change", syncCyclistMotion);
 function buildSpaceBackdrop(){
   spaceBackdrop.width = Math.ceil(W / 2); spaceBackdrop.height = Math.ceil(H / 2);
   const sky = spaceBackdrop.getContext("2d");
