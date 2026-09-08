@@ -238,6 +238,25 @@ const claudeSprite = document.createElement("canvas");
   };
   if (claudeImg.complete && claudeImg.naturalWidth) draw(); else claudeImg.onload = draw;
 })();
+
+const DEEPSEEK_SRC = "deepseek_logo.png";
+const deepseekImg = new Image(); deepseekImg.src = DEEPSEEK_SRC;
+const deepseekSprite = document.createElement("canvas");
+(function(){
+  const S = 160; deepseekSprite.width = deepseekSprite.height = S;
+  const c = deepseekSprite.getContext("2d");
+  const draw = () => {
+    c.clearRect(0, 0, S, S);
+    c.save();
+    c.fillStyle = "#0c1538";
+    c.beginPath(); c.arc(S/2, S/2, S/2 - 4, 0, Math.PI * 2); c.fill();
+    c.drawImage(deepseekImg, 24, 24, S - 48, S - 48);
+    c.lineWidth = 6; c.strokeStyle = "rgba(77,107,254,.95)";
+    c.beginPath(); c.arc(S/2, S/2, S/2 - 4, 0, Math.PI * 2); c.stroke();
+    c.restore();
+  };
+  if (deepseekImg.complete && deepseekImg.naturalWidth) draw(); else deepseekImg.onload = draw;
+})();
 /* ================= canvas ================= */
 const cvs = document.getElementById("c");
 const ctx = cvs.getContext("2d");
@@ -443,6 +462,8 @@ let tiboChance = 0.38;        // 38% probability of Tibo rescue on lethal hit
 let thinkingZones = [];       // {x, y, r, t, life}
 let fableBeam = null;         // {x, w, t, life}
 let fablePopup = null;        // {t, life, quote}
+let deepseekPopup = null;     // {t, life, quote}
+let freeTokens = [];          // {x, y, vx, vy, t, life}
 let dyingT = 0, overT = 0, winT = 0, hitAt = {x:0, y:0};
 let shake = 0, fireCount = 0, hudTick = 0;
 
@@ -622,6 +643,47 @@ function triggerFableBeam(){
   updateHUD(true);
 }
 
+function triggerDeepSeek(){
+  deepseekPopup = {
+    t: 0,
+    life: 3.2,
+    quote: "“<think> 正在执行 DeepSeek-V4 全局开源蒸馏：敌方鹈鹕弹幕已全量格式化为免费 Token </think>”"
+  };
+  boss.frozen = 3.6;
+  boss.vy = -340;
+  boss.rage = 0; boss.rageWarn = 0;
+  if (boss.laser){ boss.laser.state = "idle"; boss.laser.timer = 0; boss.laserCooldown = rand(9, 14); }
+  shake = 20;
+
+  const count = bullets.length;
+  for (const b of bullets){
+    burst(b.x, b.y, "#4D6BFE", 8);
+    burst(b.x, b.y, "#22c55e", 6);
+    freeTokens.push({
+      x: b.x, y: b.y,
+      vx: rand(-80, 80), vy: rand(-80, 80),
+      t: 0, life: 10
+    });
+    dodged++;
+  }
+  bullets = [];
+
+  const DEEPSEEK_BOSS_TAUNTS = [
+    "凭什么你们 V4 的推理成本只要几分钱？！我不服！",
+    "429！不要用开源蒸馏把我的鹈鹕变成免费 Token！",
+    "成本暴跌90%？！我的高维算力护城河塌了！！",
+    "别说了，DeepSeek-V4 已经在我的集群里跑满了！"
+  ];
+  boss.taunt = DEEPSEEK_BOSS_TAUNTS[Math.floor(Math.random() * DEEPSEEK_BOSS_TAUNTS.length)];
+  boss.tauntT = 5.0;
+
+  floats.push({x: player.x, y: player.y - 45, txt: `🐋 DeepSeek-V4 开源蒸馏！转化免费 Token ×${count}！`, t: 0, life: 2.2, color: "#4D6BFE"});
+
+  beep(140, 0.35, "sine", 0.12, 420);
+  setTimeout(() => beep(420, 0.28, "triangle", 0.10, 840), 100);
+  updateHUD(true);
+}
+
 function triggerClearContext(){
   if (state !== "playing" || paused || energy < 100) return;
   energy = 0;
@@ -701,7 +763,7 @@ function startGame(){
   elapsed = 0; progress = 0; grazes = 0; concs = 0; fireCount = 0; dodged = 0;
   clearedCount = 0; energy = 0; currentPhase = 1; phaseAnnounce = null;
   tiboSaves = 0; tiboPopup = null;
-  thinkingZones = []; fableBeam = null; fablePopup = null;
+  thinkingZones = []; fableBeam = null; fablePopup = null; deepseekPopup = null; freeTokens = [];
   player.speed = char.speed;
   player.hitR = char.hitR;
   player.shields = char.initShields;
@@ -800,13 +862,85 @@ function finishOver(){
   show("over");
 }
 function winGame(){
+  if (state === "executing_win" || state === "win") return;
+  state = "executing_win";
+  winT = 0;
+  shake = 28;
+
+  // Transform all hostile bullets into golden fireworks
+  for (const b of bullets){
+    burst(b.x, b.y, "#ffd166", 12);
+    burst(b.x, b.y, "#ffffff", 6);
+    dodged++;
+  }
+  bullets = [];
+
+  // Massive golden purification shockwave
+  shockwaves.push({
+    x: boss.x, y: boss.y,
+    r: 16, maxR: Math.max(W, H) * 1.35,
+    t: 0, life: 1.6
+  });
+
+  // Boss core overload breakdown
+  boss.vx = 0; boss.vy = 0;
+  boss.frozen = 99;
+  if (boss.laser){ boss.laser.state = "idle"; boss.laser.timer = 0; }
+  boss.taunt = "5小时额度真的被你们白嫖完了……我的算力！！";
+  boss.tauntT = 99;
+
+  beep(523, 0.22, "sine", 0.12, 1046);
+  setTimeout(() => beep(659, 0.26, "square", 0.10, 1318), 160);
+  setTimeout(() => beep(784, 0.32, "triangle", 0.11, 1568), 320);
+  setTimeout(() => beep(1046, 0.65, "sine", 0.15, 2093), 480);
+}
+
+function updateWinExecution(dt){
+  winT += dt;
+  shake = Math.max(0, shake - dt * 14);
+
+  for (let i = particles.length - 1; i >= 0; i--){
+    const p = particles[i]; p.t += dt;
+    if (p.t > p.life){ particles.splice(i, 1); continue; }
+    p.x += p.vx * dt; p.y += p.vy * dt;
+  }
+  for (let i = floats.length - 1; i >= 0; i--){
+    const f = floats[i]; f.t += dt;
+    if (f.t > f.life){ floats.splice(i, 1); continue; }
+    f.y -= 25 * dt;
+  }
+  for (let i = shockwaves.length - 1; i >= 0; i--){
+    const sw = shockwaves[i]; sw.t += dt;
+    if (sw.t > sw.life){ shockwaves.splice(i, 1); continue; }
+    sw.r = lerp(12, sw.maxR, Math.pow(sw.t / sw.life, 0.45));
+  }
+
+  // Fountains of gold tokens bursting from Boss
+  if (Math.random() < 0.85){
+    const a = rand(0, TAU), s = rand(120, 360);
+    particles.push({
+      x: boss.x + rand(-20, 20), y: boss.y + rand(-20, 20),
+      vx: Math.cos(a)*s, vy: Math.sin(a)*s,
+      t: 0, life: rand(0.7, 1.4),
+      color: Math.random() < 0.65 ? "#ffd166" : (Math.random() < 0.5 ? "#5ef2ff" : "#ffffff"),
+      size: rand(3, 7)
+    });
+  }
+
+  boss.rot += dt * 3.5;
+
+  if (winT > 2.6){
+    finishWin();
+  }
+}
+
+function finishWin(){
   stopBGM();
-  state = "win"; winT = 0;
+  state = "win";
+  winT = 0;
   const isPB = saveRecords(1, elapsed, grazes, true);
   document.getElementById("winStats").innerHTML = statsHTML(isPB);
   show("win");
-  beep(523, .12, "square", .07); setTimeout(()=>beep(659, .12, "square", .07), 130);
-  setTimeout(()=>beep(784, .12, "square", .07), 260); setTimeout(()=>beep(1047, .3, "square", .08), 390);
 }
 
 /* ================= spawning ================= */
@@ -866,11 +1000,12 @@ function firePelican(){
 }
 function pickPickupType(){
   const r = Math.random();
-  if (r < 0.44) return "conc";   // Concurrency (+5% quota)
-  if (r < 0.60) return "key";    // API Key (Shield +1)
-  if (r < 0.74) return "temp0";  // Temperature 0 (Boss Freeze 3s)
-  if (r < 0.86) return "fable";  // 📜 Claude Fable 5.1 援军信标
-  return "hallu";                // Model Hallucination (-4% quota, Slow 2s)
+  if (r < 0.38) return "conc";      // Concurrency (+5% quota)
+  if (r < 0.52) return "key";       // API Key (Shield +1)
+  if (r < 0.64) return "temp0";     // Temperature 0 (Boss Freeze 3s)
+  if (r < 0.76) return "fable";     // 📜 Claude Fable 5.1 援军信标
+  if (r < 0.88) return "deepseek";  // 🐋 DeepSeek V4 开源蒸馏信标
+  return "hallu";                   // Model Hallucination (-4% quota, Slow 2s)
 }
 function spawnPickup(){
   const type = pickPickupType();
@@ -878,7 +1013,7 @@ function spawnPickup(){
     type,
     x: rand(ARENA.x + 60, ARENA.x + ARENA.w - 60),
     y: rand(ARENA.y + 60, ARENA.y + ARENA.h - 60),
-    t: 0, life: type === "conc" ? 24 : (type === "fable" ? 18 : 12), phase: rand(0, TAU)
+    t: 0, life: type === "conc" ? 24 : (type === "fable" || type === "deepseek" ? 18 : 12), phase: rand(0, TAU)
   });
 }
 function burst(x, y, color, n = 14){
@@ -1193,6 +1328,8 @@ function update(dt){
         beep(1046, 0.15, "triangle", 0.08); setTimeout(() => beep(1318, 0.25, "sine", 0.08), 80);
       } else if (p.type === "fable"){
         triggerFableBeam();
+      } else if (p.type === "deepseek"){
+        triggerDeepSeek();
       } else if (p.type === "hallu"){
         if (char.id === "anthropic"){
           progress = Math.min(1, progress + 0.03);
@@ -1233,8 +1370,35 @@ function update(dt){
     fablePopup.t += dt;
     if (fablePopup.t > fablePopup.life) fablePopup = null;
   }
+  if (deepseekPopup){
+    deepseekPopup.t += dt;
+    if (deepseekPopup.t > deepseekPopup.life) deepseekPopup = null;
+  }
 
-  /* --- bullets --- */
+  /* --- free tokens (DeepSeek V4) --- */
+  for (let i = freeTokens.length - 1; i >= 0; i--){
+    const tok = freeTokens[i]; tok.t += dt;
+    if (tok.t > tok.life){ freeTokens.splice(i, 1); continue; }
+    const dx = player.x - tok.x, dy = player.y - tok.y;
+    const dist = Math.hypot(dx, dy);
+    if (dist < player.r + 14){
+      freeTokens.splice(i, 1);
+      concs++;
+      progress = Math.min(1, progress + 0.012);
+      energy = Math.min(100, energy + 4);
+      burst(tok.x, tok.y, "#4D6BFE", 8);
+      burst(tok.x, tok.y, "#22c55e", 6);
+      beep(880, 0.05, "sine", 0.04);
+      floats.push({x: player.x + rand(-20, 20), y: player.y - 20, txt: "+1.2% 开源Token", t: 0, life: 0.9, color: "#4ade80"});
+      if (progress >= 1){ progress = 1; updateHUD(true); winGame(); return; }
+      continue;
+    }
+    const pull = clamp(600 / Math.max(30, dist), 90, 520);
+    tok.vx += (dx / dist) * pull * dt * 2.5;
+    tok.vy += (dy / dist) * pull * dt * 2.5;
+    tok.vx *= 0.94; tok.vy *= 0.94;
+    tok.x += tok.vx * dt; tok.y += tok.vy * dt;
+  }
   for (let i = bullets.length - 1; i >= 0; i--){
     const b = bullets[i]; b.t += dt;
     let spdMul = 1;
@@ -1491,6 +1655,24 @@ function render(){
       ctx.shadowBlur = 0; ctx.fillStyle = "#ffd5b3";
       ctx.font = "bold 11px 'Microsoft YaHei',sans-serif"; ctx.textAlign = "center";
       ctx.fillText("Fable 5.1", 0, 33);
+    } else if (p.type === "deepseek"){
+      // 🐋 DeepSeek V4 开源蒸馏信标
+      ctx.shadowColor = "#4D6BFE"; ctx.shadowBlur = 20;
+      ctx.strokeStyle = "rgba(77,107,254,.45)"; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(0, 0, 16, 0, TAU); ctx.stroke();
+      ctx.save(); ctx.rotate(p.t * 2.0);
+      ctx.strokeStyle = "#4D6BFE"; ctx.lineWidth = 2;
+      ctx.strokeRect(-9, -9, 18, 18);
+      ctx.restore();
+      if (deepseekImg.complete && deepseekImg.naturalWidth){
+        ctx.drawImage(deepseekImg, -10, -10, 20, 20);
+      } else {
+        ctx.fillStyle = "#4D6BFE";
+        ctx.beginPath(); ctx.arc(0, 0, 5, 0, TAU); ctx.fill();
+      }
+      ctx.shadowBlur = 0; ctx.fillStyle = "#c7d2fe";
+      ctx.font = "bold 11px 'Microsoft YaHei',sans-serif"; ctx.textAlign = "center";
+      ctx.fillText("DeepSeek V4", 0, 33);
     } else {
       // ⚡ 并发 spinner
       const isDanger = p.t >= 5;
@@ -1528,6 +1710,19 @@ function render(){
       ctx.shadowColor = "rgba(255,209,102,.75)"; ctx.shadowBlur = 10;
       ctx.drawImage(pelSprite, -b.r, -b.r, b.r * 2, b.r * 2);
     }
+    ctx.restore();
+  }
+
+  /* free tokens (DeepSeek V4) */
+  for (const tok of freeTokens){
+    ctx.save(); ctx.translate(tok.x, tok.y);
+    ctx.shadowColor = "#4ade80"; ctx.shadowBlur = 12;
+    ctx.fillStyle = "#22c55e";
+    ctx.beginPath(); ctx.arc(0, 0, 7.5, 0, TAU); ctx.fill();
+    ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.shadowBlur = 0; ctx.fillStyle = "#ffffff";
+    ctx.font = "bold 8px 'Courier New',monospace"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText("TK", 0, 0.5);
     ctx.restore();
   }
 
@@ -1837,6 +2032,95 @@ function render(){
     ctx.fillText("Anthropic 最强混合推理旗舰光束净化全场 · 鹈鹕弹幕已被 Artifacts 格式化消弹！", 0, avatarY + avatarSize/2 + 72);
     ctx.restore();
   }
+
+  /* DeepSeek V4 popup */
+  if (deepseekPopup){
+    const dp = deepseekPopup;
+    const a = dp.t < 0.35 ? dp.t / 0.35 : (dp.t > dp.life - 0.4 ? (dp.life - dp.t) / 0.4 : 1);
+    const scale = dp.t < 0.35 ? easeOutBack(dp.t / 0.35) : 1;
+    ctx.save();
+    ctx.globalAlpha = clamp(a, 0, 1);
+
+    const bgGrad = ctx.createRadialGradient(W/2, H/2, 40, W/2, H/2, Math.max(W, H)*0.6);
+    bgGrad.addColorStop(0, "rgba(77,107,254,0.22)");
+    bgGrad.addColorStop(1, "rgba(5,8,18,0.5)");
+    ctx.fillStyle = bgGrad;
+    ctx.fillRect(-30, -30, W + 60, H + 60);
+
+    ctx.translate(W/2, H/2);
+    ctx.scale(scale, scale);
+    const cw = Math.min(W - 44, 540), ch = 240;
+    ctx.fillStyle = "rgba(10,14,36,0.96)";
+    ctx.strokeStyle = "rgba(77,107,254,0.9)";
+    ctx.lineWidth = 2.5;
+    ctx.shadowColor = "#4D6BFE";
+    ctx.shadowBlur = 32;
+    roundRect(-cw/2, -ch/2, cw, ch, 18);
+    ctx.fill(); ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    const avatarSize = 84;
+    const avatarY = -ch/2 + 58;
+    if (deepseekSprite.width){
+      ctx.save();
+      ctx.shadowColor = "rgba(77,107,254,0.95)";
+      ctx.shadowBlur = 22;
+      ctx.drawImage(deepseekSprite, -avatarSize/2, avatarY - avatarSize/2, avatarSize, avatarSize);
+      ctx.restore();
+    }
+
+    ctx.textAlign = "center";
+    ctx.font = "bold 18px 'Microsoft YaHei',sans-serif";
+    ctx.fillStyle = "#60a5fa";
+    ctx.fillText("🐋 DEEPSEEK-V4 · 深度思考开源蒸馏！", 0, avatarY + avatarSize/2 + 24);
+
+    ctx.font = "italic bold 13px 'Segoe UI','Microsoft YaHei',monospace,sans-serif";
+    ctx.fillStyle = "#93c5fd";
+    ctx.fillText(dp.quote, 0, avatarY + avatarSize/2 + 48);
+
+    ctx.font = "12px 'Microsoft YaHei',sans-serif";
+    ctx.fillStyle = "#bfdbfe";
+    ctx.fillText("深度求索 V4 推理成本暴跌 · 鹈鹕弹幕已全部蒸馏为绿色免费 Token！", 0, avatarY + avatarSize/2 + 72);
+    ctx.restore();
+  }
+
+  /* executing_win dramatic sequence */
+  if (state === "executing_win"){
+    ctx.fillStyle = `rgba(255,209,102,${0.18 + 0.08 * Math.sin(winT * 18)})`;
+    ctx.fillRect(-30, -30, W + 60, H + 60);
+
+    ctx.save();
+    ctx.translate(boss.x, boss.y);
+    const numCracks = 12;
+    ctx.strokeStyle = "#ffd166";
+    ctx.lineWidth = 3 + Math.sin(winT * 22) * 1.5;
+    ctx.shadowColor = "#ffd166"; ctx.shadowBlur = 24;
+    ctx.beginPath();
+    for (let c = 0; c < numCracks; c++){
+      const ca = c * (Math.PI * 2 / numCracks) + Math.sin(c * 3) * 0.2;
+      const clen = (boss.r + 28) * Math.min(1, winT / 0.6);
+      ctx.moveTo(0, 0);
+      const mx = Math.cos(ca) * clen * 0.5 + Math.sin(c*5)*5;
+      const my = Math.sin(ca) * clen * 0.5 + Math.cos(c*5)*5;
+      const ex = Math.cos(ca) * clen;
+      const ey = Math.sin(ca) * clen;
+      ctx.lineTo(mx, my);
+      ctx.lineTo(ex, ey);
+    }
+    ctx.stroke();
+    ctx.restore();
+
+    ctx.save();
+    ctx.textAlign = "center";
+    ctx.font = "bold 24px 'Microsoft YaHei',sans-serif";
+    ctx.fillStyle = "#ffd166";
+    ctx.shadowColor = "#ffd166"; ctx.shadowBlur = 20;
+    ctx.fillText("✨ 5 小时额度彻底耗尽 · 白嫖大成功！", W/2, ARENA.y + 110);
+    ctx.font = "bold 14px 'Microsoft YaHei',sans-serif";
+    ctx.fillStyle = "#ffffff"; ctx.shadowBlur = 10;
+    ctx.fillText("ASTRA 算力全面熔毁 · 正在结算战绩...", W/2, ARENA.y + 142);
+    ctx.restore();
+  }
   if (state === "dying"){
     ctx.fillStyle = `rgba(255,40,70,${0.12 + 0.1 * Math.sin(dyingT * 20)})`;
     ctx.fillRect(-30, -30, W + 60, H + 60);
@@ -1889,6 +2173,9 @@ function loop(now){
   let dt = Math.min(0.033, (now - last) / 1000);
   last = now;
   if (state === "playing" && !paused) update(dt);
+  else if (state === "executing_win"){
+    updateWinExecution(dt);
+  }
   else if (state === "dying"){
     dyingT += dt;
     // let bullets drift slowly for drama
@@ -1923,7 +2210,11 @@ window.__game = {
   get state(){ return state; },
   get progress(){ return progress; },
   get energy(){ return energy; },
-  get shields(){ return player.shields; },
+  callFable: triggerFableBeam,
+  callDeepSeek: triggerDeepSeek,
+  get deepseekPopup(){ return deepseekPopup; },
+  get freeTokens(){ return freeTokens; },
+  win: winGame,
   get bossFrozen(){ return boss.frozen; },
   get tiboSaves(){ return tiboSaves; },
   get tiboPopup(){ return tiboPopup; },
