@@ -107,3 +107,73 @@ test('the HUD keeps refreshing time and quota during combat', async () => {
     assert.ok(parseFloat(await page.locator('#pct').textContent()) >= 25);
   } finally { await page.close(); }
 });
+
+test('the title bar puts a GitHub link to the right of FREE PLAY', async () => {
+  const page = await browser.newPage();
+  try {
+    await page.goto(url);
+    const github = page.locator('.cabinet-top a[href="https://github.com/lingr25/pelican-vs-openai"]');
+    assert.equal(await github.count(), 1);
+    assert.equal(await github.getAttribute('target'), '_blank');
+    assert.match(await github.getAttribute('rel') || '', /noopener/);
+    const followsFreePlay = await page.evaluate(() => {
+      const free = document.querySelector('.cabinet-top .free-play');
+      const link = document.querySelector('.cabinet-top a[href="https://github.com/lingr25/pelican-vs-openai"]');
+      return !!(free && link && (free.compareDocumentPosition(link) & Node.DOCUMENT_POSITION_FOLLOWING));
+    });
+    assert.equal(followsFreePlay, true);
+    assert.equal(await github.isVisible(), true);
+  } finally { await page.close(); }
+});
+
+test('the tab icon is a circular pelican matching the bullet sprite', async () => {
+  const page = await browser.newPage();
+  try {
+    await page.goto(url);
+    const icon = page.locator('link[rel="icon"]');
+    assert.equal(await icon.count(), 1);
+    const href = await icon.getAttribute('href');
+    assert.ok(href && /favicon\.png/.test(href));
+    const res = await page.request.get(new URL(href, url).href);
+    assert.equal(res.ok(), true);
+    const body = Buffer.from(await res.body());
+    assert.ok(body.slice(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])), 'favicon must be a PNG');
+    const pixels = await page.evaluate(async (iconUrl) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      await new Promise((resolve, reject) => { img.onload = resolve; img.onerror = reject; img.src = iconUrl; });
+      const canvas = document.createElement('canvas');
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0);
+      const w = canvas.width, h = canvas.height;
+      const at = (x, y) => Array.from(ctx.getImageData(x, y, 1, 1).data);
+      return { w, h, tl: at(0, 0), tr: at(w - 1, 0), bl: at(0, h - 1), br: at(w - 1, h - 1), center: at(Math.floor(w / 2), Math.floor(h / 2)) };
+    }, new URL(href, url).href);
+    assert.ok(pixels.w >= 32 && pixels.h >= 32);
+    assert.equal(pixels.w, pixels.h, 'favicon should be square');
+    for (const corner of [pixels.tl, pixels.tr, pixels.bl, pixels.br]) {
+      assert.equal(corner[3], 0, 'favicon corners must be transparent so the icon reads as a circle');
+    }
+    assert.ok(pixels.center[3] > 200, 'favicon center must be opaque');
+  } finally { await page.close(); }
+});
+
+test('copied results point players at the pelican-vs-astra game URL', async () => {
+  const page = await browser.newPage();
+  try {
+    await page.goto(url);
+    await page.locator('#btnStart').click();
+    const text = await page.evaluate(() => {
+      let copied = '';
+      const orig = navigator.clipboard && navigator.clipboard.writeText;
+      if (navigator.clipboard) navigator.clipboard.writeText = async (value) => { copied = value; };
+      window.__game.copy();
+      if (orig) navigator.clipboard.writeText = orig;
+      return copied;
+    });
+    assert.match(text, /https:\/\/aitreez.com\/game\/pelican-vs-astra\//);
+    assert.equal(text.includes('https://aitreez.com/astra/'), false);
+  } finally { await page.close(); }
+});
