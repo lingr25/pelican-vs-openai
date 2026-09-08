@@ -1,0 +1,11 @@
+{
+  "name": "pelican-vs-openai",
+  "private": true,
+  "scripts": {
+    "build": "node build-portable.js",
+    "test": "node --test tests/*.test.cjs"
+  },
+  "devDependencies": {
+    "playwright": "1.63.0"
+  }
+}
