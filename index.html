@@ -1646,6 +1646,7 @@ function render(){
       ctx.save(); ctx.rotate(p.t * 2.2);
       ctx.strokeStyle = "#ff8c42"; ctx.lineWidth = 2;
       ctx.strokeRect(-9, -9, 18, 18);
+      ctx.restore();
       if (claudeImg.complete && claudeImg.naturalWidth){
         ctx.drawImage(claudeImg, -9, -9, 18, 18);
       } else {
@@ -1842,6 +1843,7 @@ function render(){
       ctx.restore();
     }
     if (player.invuln > 0){
+      ctx.save();
       const shieldBlink = player.invuln < 0.4 ? (Math.sin(player.invuln * 25) > 0 ? 1 : 0.25) : 1;
       ctx.globalAlpha = shieldBlink * 0.85;
       ctx.rotate(elapsed * 4);
