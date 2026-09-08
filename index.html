@@ -100,6 +100,48 @@
   .bossline img{width:46px;height:38px;object-fit:cover;border-radius:8px;
     box-shadow:0 0 14px rgba(140,180,255,.5)}
   .bossline span{color:#c7d6f5;font-size:14px}
+
+  /* ---------- ASTRA combat-console skin ---------- */
+  :root{
+    --bg:#050711; --panel:rgba(8,13,27,.9); --line:rgba(119,224,255,.34);
+    --cyan:#77e0ff; --gold:#ffd166; --red:#ff6b7f; --violet:#b79cff;
+  }
+  body{background:#050711;letter-spacing:.01em}
+  body::before{content:"";position:fixed;inset:0;z-index:1;pointer-events:none;opacity:.12;
+    background:repeating-linear-gradient(0deg,rgba(255,255,255,.08) 0 1px,transparent 1px 4px);mix-blend-mode:screen}
+  #hud{height:76px;padding:0 22px;gap:16px;background:linear-gradient(180deg,rgba(4,7,18,.98),rgba(4,7,18,.72) 78%,transparent);
+    border-bottom:1px solid rgba(119,224,255,.16);font-family:"SFMono-Regular",Consolas,monospace}
+  #hud .brand{font-size:15px;color:#f5fbff;letter-spacing:3px;text-shadow:0 0 14px rgba(119,224,255,.45)}
+  #hud .brand small{font-size:9px;color:var(--violet);letter-spacing:3px}
+  #quota,#energyBox{padding:8px 10px;border:1px solid rgba(119,224,255,.18);background:rgba(9,18,35,.72);clip-path:polygon(0 0,calc(100% - 8px) 0,100% 8px,100% 100%,8px 100%,0 calc(100% - 8px))}
+  #quota{max-width:520px}
+  #bar,#energyBar{height:9px;border-radius:0;background:rgba(255,255,255,.07)}
+  #fill{border-radius:0;background:linear-gradient(90deg,#3ce6ba,var(--gold) 65%,#ff885c)}
+  #energyFill{border-radius:0;background:linear-gradient(90deg,#4b8dff,var(--cyan))}
+  #stats{gap:8px}
+  #stats span{padding:7px 9px;border-left:1px solid rgba(119,224,255,.18);color:#8ea7c6}
+  #stats b{color:#f5fbff}
+  #c{z-index:0}
+  .ovl{z-index:10;background:radial-gradient(ellipse at center,rgba(5,8,18,.18),rgba(3,4,10,.92) 82%)}
+  .card{border-radius:4px;border:1px solid rgba(119,224,255,.55);padding:34px 44px;background:linear-gradient(145deg,rgba(11,21,42,.95),rgba(7,10,23,.96));
+    box-shadow:0 0 0 1px rgba(183,156,255,.1),0 24px 80px rgba(0,0,0,.55),inset 0 0 40px rgba(119,224,255,.05);clip-path:polygon(0 12px,12px 0,calc(100% - 12px) 0,100% 12px,100% calc(100% - 12px),calc(100% - 12px) 100%,12px 100%,0 calc(100% - 12px))}
+  .card h1{font-size:31px;letter-spacing:4px;text-shadow:0 0 18px rgba(119,224,255,.28)}
+  .card .sub{color:#a9bdd8}
+  .card .rules{color:#c2d2e9;line-height:1.9}
+  .btn{border-radius:3px;padding:12px 34px;letter-spacing:3px;clip-path:polygon(0 0,calc(100% - 8px) 0,100% 8px,100% 100%,8px 100%,0 calc(100% - 8px))}
+  .btn.sec{border-radius:3px;clip-path:none}
+  .best-bar{border-radius:3px;background:rgba(119,224,255,.06)}
+  .touch-bomb,.touch-dash{border-radius:4px;clip-path:polygon(0 8px,8px 0,calc(100% - 8px) 0,100% 8px,100% calc(100% - 8px),calc(100% - 8px) 100%,8px 100%,0 calc(100% - 8px));background:rgba(8,18,36,.92)}
+  @media (max-width:720px){
+    #hud{height:88px;padding:8px 10px;gap:8px;align-items:flex-start;flex-wrap:wrap}
+    #hud .brand{font-size:12px;padding-top:4px} #hud .brand small{font-size:7px}
+    #quota{order:3;flex:1 1 100%;max-width:none;padding:5px 8px}
+    #energyBox{min-width:112px;padding:5px 8px} #stats{margin-left:auto;gap:2px}
+    #stats span{padding:4px 5px;font-size:10px} #stats span:nth-child(1),#stats span:nth-child(2){display:none}
+    .card{max-width:calc(100vw - 22px);padding:26px 20px}.card h1{font-size:22px;letter-spacing:2px}
+    .card .sub,.card .rules{font-size:12px}.card .rules{line-height:1.75}
+    .touch-dash{right:92px;bottom:18px;width:58px;height:58px}.touch-bomb{right:18px;bottom:18px;width:66px;height:66px}
+  }
 </style>
 </head>
 <body>
@@ -204,14 +246,16 @@ const tiboSprite = document.createElement("canvas");
 const cvs = document.getElementById("c");
 const ctx = cvs.getContext("2d");
 let W = 0, H = 0, DPR = 1, ARENA = {x:0,y:0,w:0,h:0};
-const HUD_H = 64;
+let HUD_H = 76;
 function resize(){
   DPR = Math.min(2, window.devicePixelRatio || 1);
   W = window.innerWidth; H = window.innerHeight;
+  HUD_H = W <= 720 ? 88 : 76;
   cvs.width = W * DPR; cvs.height = H * DPR;
   cvs.style.width = W + "px"; cvs.style.height = H + "px";
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   ARENA = {x: 24, y: HUD_H + 18, w: W - 48, h: H - HUD_H - 42};
+  pointer.ready = false; bgParallax.x = bgParallax.y = bgParallax.tx = bgParallax.ty = 0;
   buildStars();
 }
 window.addEventListener("resize", resize);
@@ -400,6 +444,18 @@ const FAILS = [
 /* ================= input ================= */
 const keys = {};
 const mouse = {x:0, y:0, active:false};
+const pointer = {x:0, y:0, ready:false};
+const bgParallax = {x:0, y:0, tx:0, ty:0};
+function trackPointer(x, y){
+  if (pointer.ready){
+    const dx = clamp(x - pointer.x, -80, 80), dy = clamp(y - pointer.y, -80, 80);
+    // The field reacts against the hand movement, like a camera with weight.
+    bgParallax.tx = clamp(bgParallax.tx - dx * 0.16, -42, 42);
+    bgParallax.ty = clamp(bgParallax.ty - dy * 0.16, -42, 42);
+  }
+  pointer.x = x; pointer.y = y; pointer.ready = true;
+  mouse.x = x; mouse.y = y; mouse.active = true;
+}
 window.addEventListener("keydown", e => {
   keys[e.code] = true;
   if (["ArrowUp","ArrowDown","ArrowLeft","ArrowRight","Space"].includes(e.code)) e.preventDefault();
@@ -414,14 +470,14 @@ window.addEventListener("keydown", e => {
   if (e.code === "KeyR" && (state === "over" || state === "win")) startGame();
 });
 window.addEventListener("keyup", e => keys[e.code] = false);
-cvs.addEventListener("mousemove", e => { mouse.x = e.clientX; mouse.y = e.clientY; mouse.active = true; });
+cvs.addEventListener("mousemove", e => trackPointer(e.clientX, e.clientY));
 let lastTouchTime = 0;
 cvs.addEventListener("touchstart", touch, {passive:false});
 cvs.addEventListener("touchmove", touch, {passive:false});
 function touch(e){
   e.preventDefault();
   const t = e.touches[0];
-  mouse.x = t.clientX; mouse.y = t.clientY; mouse.active = true;
+  trackPointer(t.clientX, t.clientY);
   const now = performance.now();
   if (now - lastTouchTime < 300 && state === "playing") triggerClearContext();
   lastTouchTime = now;
@@ -528,6 +584,7 @@ function startGame(){
   startBGM();
   player.x = W/2; player.y = ARENA.y + ARENA.h * 0.78;
   mouse.x = player.x; mouse.y = player.y;
+  pointer.ready = false; bgParallax.x = bgParallax.y = bgParallax.tx = bgParallax.ty = 0;
   boss.x = W/2; boss.y = ARENA.y + ARENA.h * 0.25;
   boss.vx = boss.vy = 0; boss.rage = 0; boss.rageWarn = 0; boss.nextRage = rand(15, 22);
   boss.retarget = 0; boss.taunt = TAUNTS[0]; boss.tauntT = 5;
@@ -607,6 +664,7 @@ function gameOver(){
 function finishOver(){
   stopBGM();
   state = "over"; overT = 0;
+  const isPB = saveRecords(progress, elapsed, grazes, false);
   document.getElementById("overReason").textContent = FAILS[Math.floor(Math.random()*FAILS.length)];
   document.getElementById("overStats").innerHTML = statsHTML(isPB);
   show("over");
@@ -614,6 +672,7 @@ function finishOver(){
 function winGame(){
   stopBGM();
   state = "win"; winT = 0;
+  const isPB = saveRecords(progress, elapsed, grazes, true);
   document.getElementById("winStats").innerHTML = statsHTML(isPB);
   show("win");
   beep(523, .12, "square", .07); setTimeout(()=>beep(659, .12, "square", .07), 130);
@@ -1022,10 +1081,26 @@ function render(){
   const g = ctx.createRadialGradient(W/2, H*0.42, 60, W/2, H*0.42, Math.max(W, H)*0.75);
   g.addColorStop(0, "#0b1026"); g.addColorStop(1, "#04050c");
   ctx.fillStyle = g; ctx.fillRect(-30, -30, W + 60, H + 60);
+
+  // Layered tactical grid and distant stars move opposite to the pointer.
+  const gridShiftX = bgParallax.x * 0.35, gridShiftY = bgParallax.y * 0.35;
+  ctx.save();
+  ctx.strokeStyle = "rgba(119,224,255,.055)"; ctx.lineWidth = 1;
+  const grid = 48;
+  for (let x = -grid + (gridShiftX % grid); x < W + grid; x += grid){
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
+  }
+  for (let y = -grid + (gridShiftY % grid); y < H + grid; y += grid){
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+  }
+  ctx.restore();
   for (const s of stars){
     const a = 0.25 + 0.55 * s.z * (0.6 + 0.4 * Math.sin(elapsed * 2 + s.tw));
     ctx.fillStyle = `rgba(200,220,255,${a})`;
-    ctx.fillRect(s.x, s.y, s.z * 2, s.z * 2);
+    const depth = 0.2 + 0.8 * s.z;
+    const sx = (s.x + bgParallax.x * depth + W + 30) % (W + 30) - 15;
+    const sy = (s.y + bgParallax.y * depth + H + 30) % (H + 30) - 15;
+    ctx.fillRect(sx, sy, s.z * 2, s.z * 2);
   }
 
   if (state === "menu"){ ctx.restore(); return; }
@@ -1033,6 +1108,14 @@ function render(){
   /* arena border */
   ctx.strokeStyle = "rgba(94,242,255,.10)"; ctx.lineWidth = 1;
   ctx.strokeRect(ARENA.x, ARENA.y, ARENA.w, ARENA.h);
+  ctx.strokeStyle = "rgba(119,224,255,.42)"; ctx.lineWidth = 2;
+  const bracket = 22;
+  for (const [x, y, sx, sy] of [
+    [ARENA.x, ARENA.y, 1, 1], [ARENA.x + ARENA.w, ARENA.y, -1, 1],
+    [ARENA.x, ARENA.y + ARENA.h, 1, -1], [ARENA.x + ARENA.w, ARENA.y + ARENA.h, -1, -1]
+  ]){
+    ctx.beginPath(); ctx.moveTo(x, y + sy * bracket); ctx.lineTo(x, y); ctx.lineTo(x + sx * bracket, y); ctx.stroke();
+  }
 
   /* pickups: 并发 spinner */
   for (const p of pickups){
@@ -1405,6 +1488,10 @@ function loop(now){
   requestAnimationFrame(loop);
   let dt = Math.min(0.033, (now - last) / 1000);
   last = now;
+  bgParallax.x += (bgParallax.tx - bgParallax.x) * Math.min(1, dt * 8);
+  bgParallax.y += (bgParallax.ty - bgParallax.y) * Math.min(1, dt * 8);
+  bgParallax.tx *= Math.exp(-dt * 2.2);
+  bgParallax.ty *= Math.exp(-dt * 2.2);
   if (state === "playing" && !paused) update(dt);
   else if (state === "dying"){
     dyingT += dt;
