@@ -48,6 +48,14 @@
   .touch-bomb.ready{border-color:var(--cyan);color:#031018;background:linear-gradient(180deg,#8be9ff,#39c6e8);
     box-shadow:0 0 24px rgba(94,242,255,.8);animation:pulse-bomb 1.2s infinite ease-in-out}
   .touch-bomb:active{transform:scale(.92)}
+  .touch-dash{position:fixed;right:106px;bottom:26px;width:64px;height:64px;border-radius:50%;
+    border:2px solid rgba(94,242,255,.25);background:rgba(10,18,36,.88);color:#6f86ad;
+    font-size:11px;font-weight:700;cursor:pointer;z-index:15;
+    display:flex;align-items:center;justify-content:center;
+    user-select:none;touch-action:manipulation;transition:transform .12s,box-shadow .2s;
+    box-shadow:0 6px 20px rgba(0,0,0,.5);backdrop-filter:blur(6px)}
+  .touch-dash.ready{border-color:var(--cyan);color:#031018;background:linear-gradient(180deg,#8be9ff,#39c6e8);box-shadow:0 0 18px rgba(94,242,255,.7)}
+  .touch-dash:active{transform:scale(.92)}
   @keyframes pulse-bomb{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
   #toast{position:fixed;bottom:36px;left:50%;transform:translateX(-50%);
     background:rgba(12,18,38,.96);border:1px solid var(--cyan);border-radius:99px;
@@ -114,6 +122,9 @@
     <span>擦弹 <b id="tGraze">0</b></span>
   </div>
 </div>
+<button id="touchDash" class="touch-dash hide" title="量子跃迁 (Shift)">
+  <span>⚡ 跃迁</span>
+</button>
 <button id="touchBomb" class="touch-bomb hide" title="清空上下文 (SPACE / 双击)">
   <span>🧹 清空<br>上下文</span>
 </button>
@@ -130,7 +141,7 @@
       · 拾取道具：<em class="cy">「并发」+5%进度</em>、<em style="color:var(--gold)">「API Key」护盾保命</em>、<em style="color:#80f7ff">「Temp 0」冰冻 Boss 3秒</em>；小心 <em style="color:var(--red)">「幻觉」倒扣额度减速</em>！<br>
       · <em class="cy">擦弹 (Graze)</em> 充能，满 100% 按 <em class="cy">SPACE / 点击按钮</em> 释放<b>「清空上下文」</b>全屏消弹！<br>
       · 致命一击？有几率触发 <em class="cy">Tibo 降临</em>：免除暴毙，但 5 小时额度<b>重置回 100%</b>！<br>
-      · 鼠标 / 触控 / WASD 移动，<em>SPACE</em> 清空上下文，<em>P</em> 暂停，<em>M</em> 静音
+      · 移动操控：鼠标 / 触控 / WASD，<em>SHIFT / 跃迁按钮</em> 闪避冲刺（自带无敌帧），<em>SPACE</em> 清空上下文，<em>P</em> 暂停，<em>M</em> 开关音乐音效
     </div>
     <div id="menuBest" class="best-bar" style="display:none"></div>
     <button class="btn" id="btnStart">开 始 躲 避</button>
@@ -247,6 +258,66 @@ function beep(f0, dur, type = "sine", gain = 0.06, f1 = null){
   }catch(e){}
 }
 
+/* 8-bit chiptune BGM engine */
+const BGM_STEP_TIME = 0.12;
+const BGM_MELODY = [523, 0, 622, 0, 784, 0, 698, 622, 587, 0, 622, 0, 523, 0, 466, 0, 523, 0, 784, 0, 880, 0, 784, 698, 622, 698, 784, 0, 622, 587, 523, 0];
+const BGM_BASS   = [131, 131, 262, 131, 156, 156, 311, 156, 175, 175, 349, 175, 196, 196, 392, 196, 131, 131, 262, 131, 208, 208, 415, 208, 233, 233, 466, 233, 196, 196, 392, 196];
+let bgmInterval = null, bgmStep = 0;
+function playBgmStep(){
+  if (muted || state !== "playing" || paused) return;
+  try {
+    AC = AC || new (window.AudioContext || window.webkitAudioContext)();
+    if (AC.state === "suspended") AC.resume();
+    const now = AC.currentTime;
+    const mFreq = BGM_MELODY[bgmStep % BGM_MELODY.length];
+    if (mFreq > 0){
+      const osc = AC.createOscillator(), g = AC.createGain();
+      osc.type = "square";
+      osc.frequency.setValueAtTime(mFreq, now);
+      g.gain.setValueAtTime(0.026, now);
+      g.gain.exponentialRampToValueAtTime(0.0001, now + BGM_STEP_TIME * 0.88);
+      osc.connect(g).connect(AC.destination);
+      osc.start(now); osc.stop(now + BGM_STEP_TIME * 0.88);
+    }
+    const bFreq = BGM_BASS[bgmStep % BGM_BASS.length];
+    if (bFreq > 0){
+      const bOsc = AC.createOscillator(), bg = AC.createGain();
+      bOsc.type = "triangle";
+      bOsc.frequency.setValueAtTime(bFreq, now);
+      bg.gain.setValueAtTime(0.045, now);
+      bg.gain.exponentialRampToValueAtTime(0.0001, now + BGM_STEP_TIME * 0.92);
+      bOsc.connect(bg).connect(AC.destination);
+      bOsc.start(now); bOsc.stop(now + BGM_STEP_TIME * 0.92);
+    }
+    if (bgmStep % 4 === 0){
+      const kOsc = AC.createOscillator(), kg = AC.createGain();
+      kOsc.type = "sine";
+      kOsc.frequency.setValueAtTime(140, now);
+      kOsc.frequency.exponentialRampToValueAtTime(32, now + 0.08);
+      kg.gain.setValueAtTime(0.065, now);
+      kg.gain.exponentialRampToValueAtTime(0.0001, now + 0.08);
+      kOsc.connect(kg).connect(AC.destination);
+      kOsc.start(now); kOsc.stop(now + 0.08);
+    } else if (bgmStep % 2 === 1){
+      const hOsc = AC.createOscillator(), hg = AC.createGain();
+      hOsc.type = "square";
+      hOsc.frequency.setValueAtTime(1800 + Math.random() * 300, now);
+      hg.gain.setValueAtTime(0.012, now);
+      hg.gain.exponentialRampToValueAtTime(0.0001, now + 0.03);
+      hOsc.connect(hg).connect(AC.destination);
+      hOsc.start(now); hOsc.stop(now + 0.03);
+    }
+  } catch(e){}
+  bgmStep++;
+}
+function startBGM(){
+  if (bgmInterval) clearInterval(bgmInterval);
+  bgmStep = 0;
+  bgmInterval = setInterval(playBgmStep, BGM_STEP_TIME * 1000);
+}
+function stopBGM(){
+  if (bgmInterval){ clearInterval(bgmInterval); bgmInterval = null; }
+}
 /* ================= game state ================= */
 const PASSIVE_TIME = 300;     // seconds to burn 0%->100% with no pickups
 const PICKUP_BONUS = 0.05;    // +5% per 并发
@@ -272,8 +343,12 @@ const TIBO_QUOTES = [
   "“这次算我的，额度已重置为 100%！”",
   "“Product Update: 所有用户的额度已清空重置。”"
 ];
-const player = {x:0, y:0, r:13, hitR:7, speed:340, invuln:0, shields:0, slowTimer:0};
-const boss = {x:0, y:0, vx:0, vy:0, tx:0, ty:0, retarget:0, rot:0, r:58, rage:0, rageWarn:0, nextRage:14, taunt:"", tauntT:0, frozen:0};
+const player = {x:0, y:0, r:13, hitR:7, speed:340, invuln:0, shields:0, slowTimer:0, dashCd:0, dashT:0, dashVx:0, dashVy:0, ghosts:[]};
+const boss = {
+  x:0, y:0, vx:0, vy:0, tx:0, ty:0, retarget:0, rot:0, r:58, rage:0, rageWarn:0, nextRage:14, taunt:"", tauntT:0, frozen:0,
+  laser: { state: "idle", timer: 0, warnDur: 1.25, fireDur: 1.1, ang: 0, sweepRate: 0, width: 28, hitR: 14 },
+  laserCooldown: 9.0
+};
 let bullets = [], pickups = [], particles = [], floats = [];
 let fireTimer = 1.2, pickupTimer = 3.5;
 
@@ -335,6 +410,7 @@ window.addEventListener("keydown", e => {
     else if (state === "playing") triggerClearContext();
   }
   if ((e.code === "KeyF" || e.code === "KeyE") && state === "playing") triggerClearContext();
+  if ((e.code === "ShiftLeft" || e.code === "ShiftRight" || e.code === "KeyJ") && state === "playing") triggerDash();
   if (e.code === "KeyR" && (state === "over" || state === "win")) startGame();
 });
 window.addEventListener("keyup", e => keys[e.code] = false);
@@ -352,6 +428,31 @@ function touch(e){
 }
 
 /* ================= flow ================= */
+function triggerDash(){
+  if (state !== "playing" || paused || player.dashCd > 0) return;
+  player.dashCd = 2.2;
+  player.dashT = 0.16;
+  player.invuln = Math.max(player.invuln, 0.28);
+  let dx = (keys.KeyD||keys.ArrowRight?1:0) - (keys.KeyA||keys.ArrowLeft?1:0);
+  let dy = (keys.KeyS||keys.ArrowDown?1:0) - (keys.KeyW||keys.ArrowUp?1:0);
+  if (!dx && !dy){
+    const mx = mouse.x - player.x, my = mouse.y - player.y;
+    const m = Math.hypot(mx, my);
+    if (m > 12){ dx = mx/m; dy = my/m; }
+    else { dx = 0; dy = -1; }
+  } else {
+    const m = Math.hypot(dx, dy);
+    dx /= m; dy /= m;
+  }
+  const dashSpeed = player.speed * 3.2;
+  player.dashVx = dx * dashSpeed;
+  player.dashVy = dy * dashSpeed;
+  shake = Math.max(shake, 8);
+  burst(player.x, player.y, "rgba(94,242,255,.8)", 14);
+  beep(360, 0.12, "sine", 0.08, 920);
+  updateHUD(true);
+}
+
 function triggerClearContext(){
   if (state !== "playing" || paused || energy < 100) return;
   energy = 0;
@@ -421,7 +522,10 @@ function startGame(){
   clearedCount = 0; energy = 0; currentPhase = 1; phaseAnnounce = null;
   tiboSaves = 0; tiboPopup = null;
   player.invuln = 0; player.shields = 0; player.slowTimer = 0; boss.frozen = 0; shockwaves = [];
-  fireTimer = 1.4; pickupTimer = 3.0; shake = 0;
+  player.dashCd = 0; player.dashT = 0; player.ghosts = [];
+  boss.laser = { state: "idle", timer: 0, warnDur: 1.25, fireDur: 1.1, ang: 0, sweepRate: 0, width: 28, hitR: 14 };
+  boss.laserCooldown = 9.0;
+  startBGM();
   player.x = W/2; player.y = ARENA.y + ARENA.h * 0.78;
   mouse.x = player.x; mouse.y = player.y;
   boss.x = W/2; boss.y = ARENA.y + ARENA.h * 0.25;
@@ -435,8 +539,9 @@ function startGame(){
 function show(id){
   for (const o of ["menu","over","win"]) document.getElementById(o).classList.toggle("hide", o !== id);
   const tb = document.getElementById("touchBomb");
+  const td = document.getElementById("touchDash");
   if (tb) tb.classList.toggle("hide", id !== null);
-  if (!id) return;
+  if (td) td.classList.toggle("hide", id !== null);
   document.getElementById("hud").style.display = id === "menu" ? "none" : "flex";
   if (id === "menu") updateMenuBest();
 }
@@ -500,15 +605,15 @@ function gameOver(){
   beep(90, 0.5, "sawtooth", 0.14, 40);
 }
 function finishOver(){
+  stopBGM();
   state = "over"; overT = 0;
-  const isPB = saveRecords(progress, elapsed, grazes, false);
   document.getElementById("overReason").textContent = FAILS[Math.floor(Math.random()*FAILS.length)];
   document.getElementById("overStats").innerHTML = statsHTML(isPB);
   show("over");
 }
 function winGame(){
+  stopBGM();
   state = "win"; winT = 0;
-  const isPB = saveRecords(1, elapsed, grazes, true);
   document.getElementById("winStats").innerHTML = statsHTML(isPB);
   show("win");
   beep(523, .12, "square", .07); setTimeout(()=>beep(659, .12, "square", .07), 130);
@@ -529,6 +634,31 @@ function firePelican(){
       rot: rand(0, TAU), spin: rand(-4, 4), r: 17, hitR: 12, grazed: false, t: 0
     });
   };
+  // Strawberry double spiral barrage in Phase 3
+  if (currentPhase === 3 && fireCount % 6 === 2){
+    const arms = 2;
+    const spiralCount = 8;
+    const baseRot = boss.rot * 2;
+    for (let arm = 0; arm < arms; arm++){
+      const armAngle = baseRot + arm * Math.PI;
+      for (let s = 0; s < spiralCount; s++){
+        const a = armAngle + s * 0.22;
+        const spd = speed * (0.65 + s * 0.04);
+        bullets.push({
+          x: boss.x + Math.cos(a) * (boss.r + 8),
+          y: boss.y + Math.sin(a) * (boss.r + 8),
+          vx: Math.cos(a) * spd,
+          vy: Math.sin(a) * spd,
+          rot: a, spin: rand(-3, 3), r: 16, hitR: 11,
+          isStrawberry: true,
+          grazed: false, t: 0
+        });
+      }
+    }
+    shake = Math.max(shake, 8);
+    beep(520, 0.15, "triangle", 0.07, 260);
+    return;
+  }
   const ringInterval = currentPhase === 3 ? 4 : 5;
   if (fireCount % ringInterval === (ringInterval - 1)){  // radial ring
     const n = 9 + Math.round(d * 6) + (currentPhase === 3 ? 3 : 0), off = rand(0, TAU);
@@ -606,18 +736,32 @@ function update(dt){
   const d = difficulty();
 
   /* --- player --- */
+  if (player.dashCd > 0) player.dashCd -= dt;
+  if (player.dashT > 0){
+    player.dashT -= dt;
+    player.x += player.dashVx * dt;
+    player.y += player.dashVy * dt;
+    player.ghosts.push({x: player.x, y: player.y, alpha: 0.65});
+  }
+  for (let i = player.ghosts.length - 1; i >= 0; i--){
+    const g = player.ghosts[i];
+    g.alpha -= dt * 3.5;
+    if (g.alpha <= 0) player.ghosts.splice(i, 1);
+  }
   let kx = (keys.KeyD||keys.ArrowRight?1:0) - (keys.KeyA||keys.ArrowLeft?1:0);
   let ky = (keys.KeyS||keys.ArrowDown?1:0) - (keys.KeyW||keys.ArrowUp?1:0);
   const curSpeed = player.speed * (player.slowTimer > 0 ? 0.58 : 1);
-  if (kx || ky){
-    const m = Math.hypot(kx, ky);
-    player.x += kx/m * curSpeed * dt;
-    player.y += ky/m * curSpeed * dt;
-    mouse.x = player.x; mouse.y = player.y;
-  } else if (mouse.active){
-    const k = 1 - Math.exp((player.slowTimer > 0 ? -7 : -14) * dt);
-    player.x += (mouse.x - player.x) * k;
-    player.y += (mouse.y - player.y) * k;
+  if (player.dashT <= 0){
+    if (kx || ky){
+      const m = Math.hypot(kx, ky);
+      player.x += kx/m * curSpeed * dt;
+      player.y += ky/m * curSpeed * dt;
+      mouse.x = player.x; mouse.y = player.y;
+    } else if (mouse.active){
+      const k = 1 - Math.exp((player.slowTimer > 0 ? -7 : -14) * dt);
+      player.x += (mouse.x - player.x) * k;
+      player.y += (mouse.y - player.y) * k;
+    }
   }
   player.x = clamp(player.x, ARENA.x + player.r, ARENA.x + ARENA.w - player.r);
   player.y = clamp(player.y, ARENA.y + player.r, ARENA.y + ARENA.h - player.r);
@@ -667,6 +811,69 @@ function update(dt){
       firePelican();
       fireTimer = lerp(1.35, 0.6, d) * (boss.rage > 0 ? 0.5 : 1) * rand(0.9, 1.1);
     }
+  }
+
+  /* --- boss laser (Phase 2+) --- */
+  if (currentPhase >= 2 && boss.frozen <= 0){
+    if (boss.laser.state === "idle"){
+      boss.laserCooldown -= dt;
+      if (boss.laserCooldown <= 0){
+        boss.laser.state = "warn";
+        boss.laser.timer = boss.laser.warnDur;
+        boss.laser.ang = Math.atan2(player.y - boss.y, player.x - boss.x);
+        boss.taunt = "思考中…正在规划高维激光扫射！";
+        boss.tauntT = 2.4;
+        beep(740, 0.2, "sawtooth", 0.06, 1200);
+      }
+    } else if (boss.laser.state === "warn"){
+      boss.laser.timer -= dt;
+      const targetAng = Math.atan2(player.y - boss.y, player.x - boss.x);
+      let diff = targetAng - boss.laser.ang;
+      while (diff < -Math.PI) diff += TAU;
+      while (diff > Math.PI) diff -= TAU;
+      boss.laser.ang += diff * Math.min(1, 5 * dt);
+      if (boss.laser.timer <= 0){
+        boss.laser.state = "fire";
+        boss.laser.timer = boss.laser.fireDur;
+        boss.laser.sweepRate = rand(-0.45, 0.45);
+        shake = Math.max(shake, 18);
+        beep(220, 0.9, "sawtooth", 0.12, 110);
+      }
+    } else if (boss.laser.state === "fire"){
+      boss.laser.timer -= dt;
+      boss.laser.ang += boss.laser.sweepRate * dt;
+      shake = Math.max(shake, 6);
+      const lx = Math.cos(boss.laser.ang), ly = Math.sin(boss.laser.ang);
+      const px = player.x - boss.x, py = player.y - boss.y;
+      const proj = px * lx + py * ly;
+      if (proj > 0){
+        const perpDist = Math.abs(px * ly - py * lx);
+        if (perpDist < boss.laser.hitR + player.hitR){
+          if (player.invuln > 0){
+            // invulnerable!
+          } else if (player.shields > 0){
+            player.shields--;
+            player.invuln = 1.4;
+            shake = 20;
+            burst(player.x, player.y, "#ffd166", 24);
+            floats.push({x: player.x, y: player.y - 35, txt: "🛡️ API Key 抵消激光致命伤！", t: 0, life: 1.8, color: "#ffd166"});
+            beep(587, 0.15, "square", 0.09, 1174);
+            updateHUD(true);
+          } else if (Math.random() < tiboChance){
+            triggerTiboRescue();
+          } else {
+            gameOver();
+            return;
+          }
+        }
+      }
+      if (boss.laser.timer <= 0){
+        boss.laser.state = "idle";
+        boss.laserCooldown = rand(11, 16);
+      }
+    }
+  } else {
+    if (boss.frozen > 0 && boss.laser.state !== "idle") boss.laser.state = "idle";
   }
 
   /* --- pickups --- */
@@ -788,6 +995,8 @@ function updateHUD(force){
   const ready = energy >= 100;
   if (eBar) eBar.classList.toggle("ready", ready);
   if (tb) tb.classList.toggle("ready", ready);
+  const td = document.getElementById("touchDash");
+  if (td) td.classList.toggle("ready", player.dashCd <= 0);
   const sEl = document.getElementById("statShield");
   const sVal = document.getElementById("tShield");
   if (sEl && sVal){
@@ -886,11 +1095,18 @@ function render(){
     ctx.restore();
   }
 
-  /* bullets: pelicans */
+  /* bullets: pelicans & strawberries */
   for (const b of bullets){
     ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(b.rot);
-    ctx.shadowColor = "rgba(255,209,102,.75)"; ctx.shadowBlur = 10;
-    ctx.drawImage(pelSprite, -b.r, -b.r, b.r * 2, b.r * 2);
+    if (b.isStrawberry){
+      ctx.shadowColor = "#ff4070"; ctx.shadowBlur = 14;
+      ctx.drawImage(pelSprite, -b.r, -b.r, b.r * 2, b.r * 2);
+      ctx.fillStyle = "rgba(255,50,90,0.32)";
+      ctx.beginPath(); ctx.arc(0, 0, b.r, 0, TAU); ctx.fill();
+    } else {
+      ctx.shadowColor = "rgba(255,209,102,.75)"; ctx.shadowBlur = 10;
+      ctx.drawImage(pelSprite, -b.r, -b.r, b.r * 2, b.r * 2);
+    }
     ctx.restore();
   }
 
@@ -907,7 +1123,41 @@ function render(){
     ctx.stroke();
     ctx.restore();
   }
-  /* boss: astra galaxy */
+
+  /* boss laser */
+  if (boss.laser && boss.laser.state === "warn"){
+    ctx.save();
+    ctx.strokeStyle = "rgba(255,80,100,0.85)";
+    ctx.lineWidth = 2.5;
+    ctx.setLineDash([10, 8]);
+    ctx.beginPath();
+    ctx.moveTo(boss.x, boss.y);
+    const ex = boss.x + Math.cos(boss.laser.ang) * 2500;
+    const ey = boss.y + Math.sin(boss.laser.ang) * 2500;
+    ctx.lineTo(ex, ey);
+    ctx.stroke();
+    ctx.fillStyle = "#ff4d6d";
+    ctx.beginPath();
+    ctx.arc(boss.x + Math.cos(boss.laser.ang) * 44, boss.y + Math.sin(boss.laser.ang) * 44, 5 + Math.sin(elapsed * 25) * 2, 0, TAU);
+    ctx.fill();
+    ctx.restore();
+  } else if (boss.laser && boss.laser.state === "fire"){
+    ctx.save();
+    const ex = boss.x + Math.cos(boss.laser.ang) * 2500;
+    const ey = boss.y + Math.sin(boss.laser.ang) * 2500;
+    ctx.strokeStyle = "rgba(255,70,95,0.45)";
+    ctx.lineWidth = boss.laser.width + 20;
+    ctx.shadowColor = "#ff4070";
+    ctx.shadowBlur = 36;
+    ctx.beginPath(); ctx.moveTo(boss.x, boss.y); ctx.lineTo(ex, ey); ctx.stroke();
+    ctx.strokeStyle = "rgba(94,242,255,0.85)";
+    ctx.lineWidth = boss.laser.width;
+    ctx.beginPath(); ctx.moveTo(boss.x, boss.y); ctx.lineTo(ex, ey); ctx.stroke();
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = 10;
+    ctx.beginPath(); ctx.moveTo(boss.x, boss.y); ctx.lineTo(ex, ey); ctx.stroke();
+    ctx.restore();
+  }
   if (bossImg.complete && bossImg.naturalWidth){
     ctx.save(); ctx.translate(boss.x, boss.y);
     const pulse = 1 + Math.sin(elapsed * 3) * 0.04 + (boss.rage > 0 ? 0.1 : 0);
@@ -938,6 +1188,16 @@ function render(){
       roundRect(bx - tw/2, by - 14, tw, 24, 12); ctx.fill(); ctx.stroke();
       ctx.fillStyle = "#dfe9ff"; ctx.fillText(boss.taunt, bx, by + 3);
     }
+    ctx.restore();
+  }
+
+  /* player */
+  /* player ghost trail */
+  for (const g of player.ghosts){
+    ctx.save(); ctx.translate(g.x, g.y);
+    ctx.globalAlpha = g.alpha;
+    ctx.fillStyle = "rgba(94,242,255,0.45)";
+    ctx.beginPath(); ctx.arc(0, 0, player.r, 0, TAU); ctx.fill();
     ctx.restore();
   }
 
@@ -1165,7 +1425,8 @@ document.getElementById("btnCopyOver").onclick = copyResult;
 document.getElementById("btnCopyWin").onclick = copyResult;
 const tbEl = document.getElementById("touchBomb");
 if (tbEl) tbEl.onclick = triggerClearContext;
-updateMenuBest();
+const tdEl = document.getElementById("touchDash");
+if (tdEl) tdEl.onclick = triggerDash;
 resize();
 show("menu");
 requestAnimationFrame(loop);
@@ -1187,6 +1448,10 @@ window.__game = {
   spawnBullet(x = player.x, y = player.y){ bullets.push({x, y, vx:0, vy:0, rot:0, spin:0, r:17, hitR:12, grazed:false, t:0}); },
   bomb: triggerClearContext,
   triggerTibo: triggerTiboRescue,
+  dash: triggerDash,
+  fireLaser(){ boss.laser.state = "fire"; boss.laser.timer = 1.5; boss.laser.ang = Math.atan2(player.y - boss.y, player.x - boss.x); },
+  warnLaser(){ boss.laser.state = "warn"; boss.laser.timer = 1.5; boss.laser.ang = Math.atan2(player.y - boss.y, player.x - boss.x); },
+  bgm: { start: startBGM, stop: stopBGM },
   setTiboChance(c){ tiboChance = c; },
   kill(){ if (state === "playing") gameOver(); },
   start: startGame,
