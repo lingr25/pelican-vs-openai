@@ -128,7 +128,7 @@
       · 额度随时间自然燃烧，<em>约 5 分钟</em>耗尽（0% → 100% 即胜利）<br>
       · 拾取 <em class="cy">「并发」图标</em>，增加 <em class="cy">+5%</em> 燃烧进度<br>
       · <em class="cy">擦弹 (Graze)</em> 充能，满 100% 按 <em class="cy">SPACE / 点击按钮</em> 释放<b>「清空上下文」</b>全屏消弹！<br>
-      · 被鹈鹕命中 <em>一次</em>，你就成了鹈鹕的素材<br>
+      · 致命一击？有几率触发 <em class="cy">Tibo（OpenAI 负责人）降临</em>：免除暴毙，但 5 小时额度<b>重置回 100%</b>！<br>
       · 鼠标 / 触控 / WASD 移动，<em>SPACE</em> 清空上下文，<em>P</em> 暂停，<em>M</em> 静音
     </div>
     <div id="menuBest" class="best-bar" style="display:none"></div>
@@ -173,6 +173,21 @@ const bossImg = new Image(); bossImg.src = BOSS_SRC;
 const pelImg  = new Image(); pelImg.src  = PEL_SRC;
 document.getElementById("menuBoss").src = BOSS_SRC;
 
+const TIBO_SRC = "177053821.jpg";
+const tiboImg  = new Image(); tiboImg.src  = TIBO_SRC;
+const tiboSprite = document.createElement("canvas");
+(function(){
+  const S = 160; tiboSprite.width = tiboSprite.height = S;
+  const c = tiboSprite.getContext("2d");
+  const draw = () => {
+    c.save(); c.beginPath(); c.arc(S/2, S/2, S/2 - 4, 0, Math.PI * 2); c.clip();
+    c.drawImage(tiboImg, 0, 0, S, S);
+    c.restore();
+    c.lineWidth = 6; c.strokeStyle = "rgba(255,209,102,.95)";
+    c.beginPath(); c.arc(S/2, S/2, S/2 - 4, 0, Math.PI * 2); c.stroke();
+  };
+  if (tiboImg.complete && tiboImg.naturalWidth) draw(); else tiboImg.onload = draw;
+})();
 /* ================= canvas ================= */
 const cvs = document.getElementById("c");
 const ctx = cvs.getContext("2d");
@@ -243,9 +258,19 @@ let energy = 0;               // 0 to 100
 let currentPhase = 1;        // 1 | 2 | 3
 let phaseAnnounce = null;     // {txt, sub, t, life}
 let shockwaves = [];
+let tiboSaves = 0;
+let tiboPopup = null;         // {t, life, quote}
+let tiboChance = 0.38;        // 38% probability of Tibo rescue on lethal hit
 let dyingT = 0, overT = 0, winT = 0, hitAt = {x:0, y:0};
 let shake = 0, fireCount = 0, hudTick = 0;
 
+const TIBO_QUOTES = [
+  "“I just reset your limits!”",
+  "“别慌，我刚刷新了全球使用额度。”",
+  "“检测到大量鹈鹕降智，已紧急重置 5 小时额度。”",
+  "“这次算我的，额度已重置为 100%！”",
+  "“Product Update: 所有用户的额度已清空重置。”"
+];
 const player = {x:0, y:0, r:13, hitR:7, speed:340, invuln:0};
 const boss = {x:0, y:0, vx:0, vy:0, tx:0, ty:0, retarget:0, rot:0, r:58, rage:0, rageWarn:0, nextRage:14, taunt:"", tauntT:0};
 let bullets = [], pickups = [], particles = [], floats = [];
@@ -350,10 +375,50 @@ function triggerClearContext(){
   updateHUD(true);
 }
 
+function triggerTiboRescue(){
+  tiboSaves++;
+  progress = 0;              // Quota reset back to 100% remaining (progress = 0)
+  currentPhase = 1;
+  phaseAnnounce = null;
+  shake = 22;
+  player.invuln = 2.6;       // 2.6s of invulnerability
+  
+  // Clear all pelican bullets on screen
+  for (const b of bullets){
+    burst(b.x, b.y, "#ffd166", 8);
+    dodged++;
+  }
+  bullets = [];
+  
+  // Push boss back
+  boss.vy = -360;
+  boss.rage = 0;
+  boss.rageWarn = 0;
+  boss.taunt = "Tibo 怎么又在重置额度？！";
+  boss.tauntT = 4.2;
+  
+  // Divine resurrection chime
+  beep(523, 0.18, "sine", 0.08);
+  setTimeout(() => beep(659, 0.22, "sine", 0.08), 90);
+  setTimeout(() => beep(784, 0.28, "sine", 0.09), 180);
+  setTimeout(() => beep(1047, 0.45, "sine", 0.11), 270);
+  
+  // Activate Tibo popup
+  tiboPopup = {
+    t: 0,
+    life: 3.2,
+    quote: TIBO_QUOTES[Math.floor(Math.random() * TIBO_QUOTES.length)]
+  };
+  
+  floats.push({x: player.x, y: player.y - 40, txt: "🔄 额度已重置为 100%！", t: 0, life: 2.2, color: "#ffd166"});
+  updateHUD(true);
+}
+
 function startGame(){
   state = "playing"; paused = false;
   elapsed = 0; progress = 0; grazes = 0; concs = 0; fireCount = 0; dodged = 0;
   clearedCount = 0; energy = 0; currentPhase = 1; phaseAnnounce = null;
+  tiboSaves = 0; tiboPopup = null;
   player.invuln = 0; shockwaves = [];
   bullets = []; pickups = []; particles = []; floats = [];
   fireTimer = 1.4; pickupTimer = 3.0; shake = 0;
@@ -384,18 +449,21 @@ function updateMenuBest(){
 }
 function statsHTML(isPB){
   const pbTag = isPB ? `<span class="pb-badge">新纪录 PB!</span>` : "";
+  const tiboText = tiboSaves > 0 ? ` · Tibo 救命 <b>×${tiboSaves}</b>` : "";
   return `存活 <b>${fmtTime(elapsed)}</b> · 额度燃烧 <b>${(progress*100).toFixed(1)}%</b> ${pbTag}<br>` +
-         `拾取并发 <b>×${concs}</b> · 擦弹 <b>${grazes}</b> · 消弹 <b>${clearedCount}</b> · 躲过 <b>${dodged}</b> 只<br>` +
+         `拾取并发 <b>×${concs}</b> · 擦弹 <b>${grazes}</b> · 消弹 <b>${clearedCount}</b>${tiboText} · 躲过 <b>${dodged}</b> 只<br>` +
          `<div class="best-bar">历史最佳：额度 <b>${(records.maxProgress*100).toFixed(1)}%</b> · 存活 <b>${fmtTime(records.bestTime)}</b> · 最高擦弹 <b>${records.maxGraze}</b></div>`;
 }
 function copyResult(){
   const reason = state === "win" ? "5 小时额度安全耗尽！顺利通关！" : (document.getElementById("overReason").textContent || "降智打击");
+  const tiboLine = tiboSaves > 0 ? `🔄 Tibo 额度重置：${tiboSaves} 次\n` : "";
   const text = `🎮【鹈鹕大战 OpenAI · ASTRA 降智危机】\n` +
                `⏱️ 存活时间：${fmtTime(elapsed)}\n` +
                `🔥 额度燃烧：${(progress * 100).toFixed(1)}%\n` +
                `⚡ 并发拾取：×${concs}\n` +
                `✨ 极限擦弹：${grazes} 次\n` +
                `🧹 清空上下文：${clearedCount} 次\n` +
+               tiboLine +
                `🎯 躲过鹈鹕：${dodged} 只\n` +
                `💀 结局：${reason}\n` +
                `🔗 来试试你的额度能撑多久：https://lingr25.github.io/pelican-vs-openai/`;
@@ -619,6 +687,10 @@ function update(dt){
         dodged++;
         continue;
       }
+      if (Math.random() < tiboChance){
+        triggerTiboRescue();
+        break;
+      }
       gameOver();
       return;
     }
@@ -649,6 +721,10 @@ function update(dt){
   if (phaseAnnounce){
     phaseAnnounce.t += dt;
     if (phaseAnnounce.t > phaseAnnounce.life) phaseAnnounce = null;
+  }
+  if (tiboPopup){
+    tiboPopup.t += dt;
+    if (tiboPopup.t > tiboPopup.life) tiboPopup = null;
   }
   shake = Math.max(0, shake - dt * 30);
   updateHUD();
@@ -836,7 +912,64 @@ function render(){
     ctx.fillText(p.sub, W/2, py + 18);
     ctx.restore();
   }
-  /* dying: slow-mo red vignette */
+
+  /* tibo rescue popup */
+  if (tiboPopup){
+    const tp = tiboPopup;
+    const a = tp.t < 0.35 ? tp.t / 0.35 : (tp.t > tp.life - 0.4 ? (tp.life - tp.t) / 0.4 : 1);
+    const scale = tp.t < 0.35 ? easeOutBack(tp.t / 0.35) : 1;
+    ctx.save();
+    ctx.globalAlpha = clamp(a, 0, 1);
+
+    // Golden divine radial glow
+    const bgGrad = ctx.createRadialGradient(W/2, H/2, 40, W/2, H/2, Math.max(W, H)*0.6);
+    bgGrad.addColorStop(0, "rgba(255,209,102,0.18)");
+    bgGrad.addColorStop(1, "rgba(5,8,18,0.5)");
+    ctx.fillStyle = bgGrad;
+    ctx.fillRect(-30, -30, W + 60, H + 60);
+
+    // Center Card
+    ctx.translate(W/2, H/2);
+    ctx.scale(scale, scale);
+    const cw = Math.min(W - 44, 520), ch = 236;
+    ctx.fillStyle = "rgba(10,14,32,0.96)";
+    ctx.strokeStyle = "rgba(255,209,102,0.9)";
+    ctx.lineWidth = 2.5;
+    ctx.shadowColor = "#ffd166";
+    ctx.shadowBlur = 32;
+    roundRect(-cw/2, -ch/2, cw, ch, 18);
+    ctx.fill(); ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    // Tibo circular avatar
+    const avatarSize = 84;
+    const avatarY = -ch/2 + 58;
+    if (tiboSprite.width){
+      ctx.save();
+      ctx.shadowColor = "rgba(255,209,102,0.95)";
+      ctx.shadowBlur = 20;
+      ctx.drawImage(tiboSprite, -avatarSize/2, avatarY - avatarSize/2, avatarSize, avatarSize);
+      ctx.restore();
+    }
+
+    // Title
+    ctx.textAlign = "center";
+    ctx.font = "bold 18px 'Microsoft YaHei',sans-serif";
+    ctx.fillStyle = "#ffd166";
+    ctx.fillText("✨ TIBO 降临 · 额度已为你重置！", 0, avatarY + avatarSize/2 + 24);
+
+    // Quote
+    ctx.font = "italic bold 15px 'Segoe UI','Microsoft YaHei',sans-serif";
+    ctx.fillStyle = "#5ef2ff";
+    ctx.fillText(tp.quote, 0, avatarY + avatarSize/2 + 48);
+
+    // Subtext
+    ctx.font = "12px 'Microsoft YaHei',sans-serif";
+    ctx.fillStyle = "#c7d6f5";
+    ctx.fillText("OpenAI 核心产品负责人免除了致命伤害，但 5 小时额度重新开始燃烧！", 0, avatarY + avatarSize/2 + 70);
+
+    ctx.restore();
+  }
   if (state === "dying"){
     ctx.fillStyle = `rgba(255,40,70,${0.12 + 0.1 * Math.sin(dyingT * 20)})`;
     ctx.fillRect(-30, -30, W + 60, H + 60);
@@ -918,9 +1051,13 @@ window.__game = {
   get state(){ return state; },
   get progress(){ return progress; },
   get energy(){ return energy; },
+  get tiboSaves(){ return tiboSaves; },
+  get tiboPopup(){ return tiboPopup; },
   setProgress(p){ progress = p; },
   addEnergy(v){ energy = Math.min(100, energy + v); updateHUD(true); },
   bomb: triggerClearContext,
+  triggerTibo: triggerTiboRescue,
+  setTiboChance(c){ tiboChance = c; },
   kill(){ if (state === "playing") gameOver(); },
   start: startGame,
   copy: copyResult
