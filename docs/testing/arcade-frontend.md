@@ -1,5 +1,13 @@
 # Arcade frontend verification
 
+## Deep-space visual revision
+
+The subsequent visual request replaced the warm arcade palette with near-black space, a ringed planet, a cached nebula backdrop, layered stars, and locally bundled Fusion Pixel text in both DOM and canvas. This was a presentation change; the existing six regression tests passed again without adding tests that mirror styling.
+
+The extended browser scenario passed again at 1440×1000, 390×844, 320×568, and 844×390: no page errors, no horizontal overflow, and HUD components within the viewport. Chinese font loading was confirmed with `document.fonts.check`; screenshots were inspected. The rebuilt portable version reached gameplay through `file://` with zero HTTP requests, including for the embedded font. Font license and component notices are retained in the project and embedded in the portable HTML source.
+
+## Initial arcade revision
+
 Source: user requested review and redesign of the merged frontend, replacing the blue palette with a classic bullet-hell presentation.
 
 The page now separates markup (`index.html`), presentation (`style.css`), and game code (`game.js`). `npm run build` embeds all three plus existing local media into `portable.html`.

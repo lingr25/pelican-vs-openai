@@ -75,6 +75,7 @@ function resize(){
   ARENA = {x: 24, y: HUD_H + 18, w: W - 48, h: H - HUD_H - 42};
   pointer.ready = false; bgParallax.x = bgParallax.y = bgParallax.tx = bgParallax.ty = 0;
   buildStars();
+  buildSpaceBackdrop();
 }
 window.addEventListener("resize", resize);
 
@@ -157,7 +158,7 @@ const CHARACTERS = {
     id: "prompt",
     name: "Prompt 工程师",
     icon: "👔",
-    color: "#f1c879",
+    color: "#dde2ef",
     tag: "提词",
     desc: "<b>大招流</b>：擦弹充能更快，清屏击退更远。均衡万金油。",
     speed: 340,
@@ -517,7 +518,7 @@ function triggerClearContext(){
   shockwaves.push({x: player.x, y: player.y, r: 12, maxR: Math.max(W, H) * 1.15, t: 0, life: 0.65});
   const killed = bullets.length;
   for (const b of bullets){
-    burst(b.x, b.y, "#f1c879", 8);
+    burst(b.x, b.y, "#dde2ef", 8);
     dodged++;
   }
   bullets = [];
@@ -531,7 +532,7 @@ function triggerClearContext(){
   }
   boss.taunt = "上下文已被清空？！";
   boss.tauntT = 3.2;
-  floats.push({x: player.x, y: player.y - 35, txt: `🧹 清空上下文！消弹 ×${killed}`, t: 0, life: 1.8, color: "#f1c879"});
+  floats.push({x: player.x, y: player.y - 35, txt: `🧹 清空上下文！消弹 ×${killed}`, t: 0, life: 1.8, color: "#dde2ef"});
   beep(880, 0.12, "sawtooth", 0.08, 220);
   setTimeout(() => beep(440, 0.35, "sine", 0.10, 110), 90);
   updateHUD(true);
@@ -750,7 +751,7 @@ function updateWinExecution(dt){
       x: boss.x + rand(-20, 20), y: boss.y + rand(-20, 20),
       vx: Math.cos(a)*s, vy: Math.sin(a)*s,
       t: 0, life: rand(0.7, 1.4),
-      color: Math.random() < 0.65 ? "#ffd166" : (Math.random() < 0.5 ? "#f1c879" : "#ffffff"),
+      color: Math.random() < 0.65 ? "#ffd166" : (Math.random() < 0.5 ? "#dde2ef" : "#ffffff"),
       size: rand(3, 7)
     });
   }
@@ -855,8 +856,30 @@ function burst(x, y, color, n = 14){
 let stars = [];
 function buildStars(){
   stars = [];
-  const n = Math.floor(W * H / 14000);
+  const n = Math.max(85, Math.floor(W * H / 4200));
   for (let i = 0; i < n; i++) stars.push({x: rand(0, W), y: rand(0, H), z: rand(0.3, 1), tw: rand(0, TAU)});
+}
+
+const spaceBackdrop = document.createElement("canvas");
+const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+function buildSpaceBackdrop(){
+  spaceBackdrop.width = Math.ceil(W / 2); spaceBackdrop.height = Math.ceil(H / 2);
+  const sky = spaceBackdrop.getContext("2d");
+  const sw = spaceBackdrop.width, sh = spaceBackdrop.height;
+  sky.fillStyle = "#020204"; sky.fillRect(0, 0, sw, sh);
+  // Overlapping elliptical clouds form a distant, low-contrast galactic band.
+  for (let i = 0; i < 26; i++){
+    const t = i / 25;
+    const x = sw * (t * 1.3 - .15);
+    const y = sh * (.78 - t * .68 + Math.sin(i * 1.7) * .07);
+    const r = sw * (.13 + (Math.sin(i * 2.3) + 1) * .04);
+    sky.save(); sky.translate(x, y); sky.scale(1, .45);
+    const haze = sky.createRadialGradient(0, 0, 0, 0, 0, r);
+    haze.addColorStop(0, "rgba(92,83,119,.055)");
+    haze.addColorStop(.4, "rgba(67,65,89,.035)");
+    haze.addColorStop(1, "rgba(0,0,0,0)");
+    sky.fillStyle = haze; sky.fillRect(-r, -r, 2*r, 2*r); sky.restore();
+  }
 }
 
 /* ================= update ================= */
@@ -952,7 +975,7 @@ function update(dt){
     boss.vy -= ny * 45;
 
     shake = Math.max(shake, 10);
-    burst((boss.x + player.x)/2, (boss.y + player.y)/2, "#f1c879", 10);
+    burst((boss.x + player.x)/2, (boss.y + player.y)/2, "#dde2ef", 10);
 
     boss.bounceCd = (boss.bounceCd || 0) - dt;
     if (boss.bounceCd <= 0){
@@ -1178,8 +1201,8 @@ function update(dt){
         concs++;
         progress = Math.min(1, progress + char.concBonus);
         const concTxt = wasStealing ? `+${(char.concBonus * 100).toFixed(1)}% 虎口夺食！并发抢先！` : `+${(char.concBonus * 100).toFixed(1)}% 并发燃烧！`;
-        floats.push({x: p.x, y: p.y - 20, txt: concTxt, t: 0, life: 1.5, color: "#f1c879"});
-        burst(p.x, p.y, "#f1c879", 16);
+        floats.push({x: p.x, y: p.y - 20, txt: concTxt, t: 0, life: 1.5, color: "#dde2ef"});
+        burst(p.x, p.y, "#dde2ef", 16);
         beep(660, 0.1, "sine", 0.07, 990); setTimeout(()=>beep(990, 0.12, "sine", 0.05, 1320), 70);
         if (progress >= 1){ progress = 1; updateHUD(true); winGame(); return; }
       }
@@ -1242,7 +1265,7 @@ function update(dt){
     const dist = Math.hypot(b.x - player.x, b.y - player.y);
     if (dist < b.hitR + player.hitR){
       if (player.invuln > 0){
-        burst(b.x, b.y, "#f1c879", 8);
+        burst(b.x, b.y, "#dde2ef", 8);
         bullets.splice(i, 1);
         dodged++;
         continue;
@@ -1270,8 +1293,8 @@ function update(dt){
       b.grazed = true;
       grazes++;
       energy = Math.min(100, energy + char.grazeCharge);
-      burst(player.x, player.y, "rgba(241,200,121,.9)", 4);
-      floats.push({x: player.x + rand(-15, 15), y: player.y - 18, txt: `+擦弹充能 (${char.grazeCharge}%)`, t: 0, life: 0.6, color: "#f1c879"});
+      burst(player.x, player.y, "rgba(221,226,239,.9)", 4);
+      floats.push({x: player.x + rand(-15, 15), y: player.y - 18, txt: `+擦弹充能 (${char.grazeCharge}%)`, t: 0, life: 0.6, color: "#dde2ef"});
     }
   }
   /* --- fx --- */
@@ -1341,34 +1364,31 @@ function render(){
   ctx.save();
   if (shake > 0) ctx.translate(rand(-shake, shake) * 0.5, rand(-shake, shake) * 0.5);
 
-  /* bg */
-  const g = ctx.createRadialGradient(W/2, H*0.42, 60, W/2, H*0.42, Math.max(W, H)*0.75);
-  g.addColorStop(0, "#251619"); g.addColorStop(1, "#100d0e");
-  ctx.fillStyle = g; ctx.fillRect(-30, -30, W + 60, H + 60);
-
-  // Quiet concentric bullet-pattern echoes; retain inverse pointer parallax.
-  ctx.save();
-  ctx.translate(W * 0.5 + bgParallax.x * 0.35, H * 0.42 + bgParallax.y * 0.35);
-  ctx.strokeStyle = "rgba(218,163,102,.045)"; ctx.lineWidth = 1;
-  for (let r = 110; r < Math.max(W, H); r += 110){
-    ctx.beginPath(); ctx.arc(0, 0, r, 0, TAU); ctx.stroke();
-  }
-  ctx.restore();
+  // Render a cached deep-space cloud field; individual stars keep their depth.
+  ctx.fillStyle = "#020204"; ctx.fillRect(-30, -30, W + 60, H + 60);
+  ctx.drawImage(spaceBackdrop, -24 + bgParallax.x * .25, -24 + bgParallax.y * .25, W + 48, H + 48);
+  const skyTime = reducedMotion.matches ? 0 : performance.now() / 1000;
   for (const s of stars){
-    const a = 0.25 + 0.55 * s.z * (0.6 + 0.4 * Math.sin(elapsed * 2 + s.tw));
-    ctx.fillStyle = `rgba(242,216,172,${a})`;
+    const a = 0.18 + 0.6 * s.z * (0.78 + 0.22 * Math.sin(skyTime * .7 + s.tw));
+    ctx.fillStyle = `rgba(225,225,239,${a})`;
     const depth = 0.2 + 0.8 * s.z;
-    const sx = (s.x + bgParallax.x * depth + W + 30) % (W + 30) - 15;
-    const sy = (s.y + bgParallax.y * depth + H + 30) % (H + 30) - 15;
-    ctx.fillRect(sx, sy, s.z * 2, s.z * 2);
+    const sx = Math.round((s.x + bgParallax.x * depth + W + 30) % (W + 30) - 15);
+    const sy = Math.round((s.y + bgParallax.y * depth + skyTime * s.z * .4 + H + 30) % (H + 30) - 15);
+    const size = s.z > .82 ? 2 : 1;
+    ctx.fillRect(sx, sy, size, size);
+    if (s.z > .97){
+      ctx.globalAlpha = .2;
+      ctx.fillRect(sx - 3, sy, 7, 1); ctx.fillRect(sx, sy - 3, 1, 7);
+      ctx.globalAlpha = 1;
+    }
   }
 
   if (state === "menu"){ ctx.restore(); return; }
 
   /* arena border */
-  ctx.strokeStyle = "rgba(241,200,121,.10)"; ctx.lineWidth = 1;
+  ctx.strokeStyle = "rgba(221,226,239,.10)"; ctx.lineWidth = 1;
   ctx.strokeRect(ARENA.x, ARENA.y, ARENA.w, ARENA.h);
-  ctx.strokeStyle = "rgba(241,200,121,.42)"; ctx.lineWidth = 2;
+  ctx.strokeStyle = "rgba(221,226,239,.42)"; ctx.lineWidth = 2;
   const bracket = 22;
   for (const [x, y, sx, sy] of [
     [ARENA.x, ARENA.y, 1, 1], [ARENA.x + ARENA.w, ARENA.y, -1, 1],
@@ -1395,7 +1415,7 @@ function render(){
     bGrad.addColorStop(1, "rgba(255,140,66,0.12)");
     ctx.fillStyle = bGrad;
     ctx.fillRect(fb.x - bw/2, 0, bw, H);
-    ctx.font = "bold 13px 'Courier New',monospace";
+    ctx.font = "bold 13px 'Fusion Pixel',monospace";
     ctx.textAlign = "center";
     for (let i = 0; i < 8; i++){
       const cy = ((fb.t * 540 + i * (H / 8)) % H);
@@ -1420,7 +1440,7 @@ function render(){
     ctx.beginPath(); ctx.arc(0, 0, tz.r, 0, TAU); ctx.stroke();
     ctx.restore();
     ctx.fillStyle = "#ffb076";
-    ctx.font = "bold 10px 'Segoe UI','Microsoft YaHei',sans-serif";
+    ctx.font = "bold 10px 'Fusion Pixel',monospace";
     ctx.textAlign = "center";
     ctx.fillText("🧠 Fable 5.1 思维链减速场", 0, -tz.r - 4);
     ctx.restore();
@@ -1459,7 +1479,7 @@ function render(){
       ctx.moveTo(0, 9); ctx.lineTo(4, 9);
       ctx.stroke();
       ctx.shadowBlur = 0; ctx.fillStyle = "#ffe49e";
-      ctx.font = "bold 11px 'Microsoft YaHei',sans-serif"; ctx.textAlign = "center";
+      ctx.font = "bold 11px 'Fusion Pixel',monospace"; ctx.textAlign = "center";
       ctx.fillText("API Key", 0, 33);
     } else if (p.type === "temp0"){
       // ❄️ Temperature 0
@@ -1473,8 +1493,8 @@ function render(){
         ctx.rotate(Math.PI / 3);
       }
       ctx.restore();
-      ctx.shadowBlur = 0; ctx.fillStyle = "#f5e7cc";
-      ctx.font = "bold 11px 'Microsoft YaHei',sans-serif"; ctx.textAlign = "center";
+      ctx.shadowBlur = 0; ctx.fillStyle = "#e5e5ef";
+      ctx.font = "bold 11px 'Fusion Pixel',monospace"; ctx.textAlign = "center";
       ctx.fillText("Temp 0", 0, 33);
     } else if (p.type === "hallu"){
       // ⚠️ 模型幻觉 (glitch red/purple inverted spinner)
@@ -1485,7 +1505,7 @@ function render(){
       ctx.save(); ctx.rotate(-p.t * 7);
       ctx.beginPath(); ctx.arc(0, 0, 15, 0, Math.PI * 1.25); ctx.stroke(); ctx.restore();
       ctx.shadowBlur = 0; ctx.fillStyle = "#ffa2b1";
-      ctx.font = "bold 11px 'Microsoft YaHei',sans-serif"; ctx.textAlign = "center";
+      ctx.font = "bold 11px 'Fusion Pixel',monospace"; ctx.textAlign = "center";
       ctx.fillText("幻觉", 0, 33);
     } else if (p.type === "fable"){
       // 📜 Claude Fable 5.1 援军信标
@@ -1503,7 +1523,7 @@ function render(){
         ctx.beginPath(); ctx.arc(0, 0, 4, 0, TAU); ctx.fill();
       }
       ctx.shadowBlur = 0; ctx.fillStyle = "#ffd5b3";
-      ctx.font = "bold 11px 'Microsoft YaHei',sans-serif"; ctx.textAlign = "center";
+      ctx.font = "bold 11px 'Fusion Pixel',monospace"; ctx.textAlign = "center";
       ctx.fillText("Fable 5.1", 0, 33);
     } else if (p.type === "deepseek"){
       // 🐋 DeepSeek V4 开源蒸馏信标
@@ -1521,7 +1541,7 @@ function render(){
         ctx.beginPath(); ctx.arc(0, 0, 5, 0, TAU); ctx.fill();
       }
       ctx.shadowBlur = 0; ctx.fillStyle = "#c7d2fe";
-      ctx.font = "bold 11px 'Microsoft YaHei',sans-serif"; ctx.textAlign = "center";
+      ctx.font = "bold 11px 'Fusion Pixel',monospace"; ctx.textAlign = "center";
       ctx.fillText("DeepSeek V4", 0, 33);
     } else {
       // ⚡ 并发 spinner
@@ -1532,16 +1552,16 @@ function render(){
         ctx.lineWidth = 2.5;
         ctx.beginPath(); ctx.arc(0, 0, 22 + warnPulse * 4, 0, TAU); ctx.stroke();
       }
-      ctx.shadowColor = isDanger ? "#ff4070" : "#f1c879";
+      ctx.shadowColor = isDanger ? "#ff4070" : "#dde2ef";
       ctx.shadowBlur = 16;
-      ctx.strokeStyle = isDanger ? "rgba(255,70,95,.45)" : "rgba(241,200,121,.25)";
+      ctx.strokeStyle = isDanger ? "rgba(255,70,95,.45)" : "rgba(221,226,239,.25)";
       ctx.lineWidth = 4;
       ctx.beginPath(); ctx.arc(0, 0, 15, 0, TAU); ctx.stroke();
-      ctx.strokeStyle = isDanger ? "#ff5d73" : "#f1c879"; ctx.lineCap = "round";
+      ctx.strokeStyle = isDanger ? "#ff5d73" : "#dde2ef"; ctx.lineCap = "round";
       ctx.save(); ctx.rotate(p.t * (isDanger ? 12 : 6));
       ctx.beginPath(); ctx.arc(0, 0, 15, 0, Math.PI * 1.25); ctx.stroke(); ctx.restore();
       ctx.shadowBlur = 0; ctx.globalAlpha = blink * 0.95;
-      ctx.fillStyle = isDanger ? "#ff7b8d" : "#f5e7cc"; ctx.font = "bold 11px 'Microsoft YaHei',sans-serif";
+      ctx.fillStyle = isDanger ? "#ff7b8d" : "#e5e5ef"; ctx.font = "bold 11px 'Fusion Pixel',monospace";
       ctx.textAlign = "center";
       ctx.fillText(isDanger ? "⚠️被抢中!" : "并发", 0, 33);
     }
@@ -1571,7 +1591,7 @@ function render(){
     ctx.beginPath(); ctx.arc(0, 0, 7.5, 0, TAU); ctx.fill();
     ctx.strokeStyle = "#ffffff"; ctx.lineWidth = 1.5; ctx.stroke();
     ctx.shadowBlur = 0; ctx.fillStyle = "#ffffff";
-    ctx.font = "bold 8px 'Courier New',monospace"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.font = "bold 8px 'Fusion Pixel',monospace"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
     ctx.fillText("TK", 0, 0.5);
     ctx.restore();
   }
@@ -1580,9 +1600,9 @@ function render(){
   for (const sw of shockwaves){
     const alpha = 1 - sw.t / sw.life;
     ctx.save();
-    ctx.strokeStyle = `rgba(241,200,121,${alpha * 0.9})`;
+    ctx.strokeStyle = `rgba(221,226,239,${alpha * 0.9})`;
     ctx.lineWidth = 14 * alpha + 2;
-    ctx.shadowColor = "#f1c879";
+    ctx.shadowColor = "#dde2ef";
     ctx.shadowBlur = 24;
     ctx.beginPath();
     ctx.arc(sw.x, sw.y, sw.r, 0, TAU);
@@ -1616,7 +1636,7 @@ function render(){
     ctx.shadowColor = "#ff4070";
     ctx.shadowBlur = 36;
     ctx.beginPath(); ctx.moveTo(boss.x, boss.y); ctx.lineTo(ex, ey); ctx.stroke();
-    ctx.strokeStyle = "rgba(241,200,121,0.85)";
+    ctx.strokeStyle = "rgba(221,226,239,0.85)";
     ctx.lineWidth = boss.laser.width;
     ctx.beginPath(); ctx.moveTo(boss.x, boss.y); ctx.lineTo(ex, ey); ctx.stroke();
     ctx.strokeStyle = "#ffffff";
@@ -1634,7 +1654,7 @@ function render(){
     const stunColor = isFableStun ? "#ff8c42" : (isDeepSeekStun ? "#4D6BFE" : "#b5d79a");
     const stunStroke = isFableStun ? "rgba(255,140,66,0.9)" : (isDeepSeekStun ? "rgba(77,107,254,0.9)" : "rgba(181,215,154,0.85)");
 
-    ctx.shadowColor = boss.frozen > 0 ? stunColor : (boss.rage > 0 ? "#ff5d73" : "#d68876");
+    ctx.shadowColor = boss.frozen > 0 ? stunColor : (boss.rage > 0 ? "#ff5d73" : "#b8b8d0");
     ctx.shadowBlur = boss.frozen > 0 ? 44 : (boss.rage > 0 ? 55 : 34);
     const bw = boss.r * 2.5 * pulse, bh = bw * (bossImg.height / bossImg.width);
     if (boss.rageWarn > 0 && Math.sin(elapsed * 30) > 0) ctx.globalAlpha = 0.55;
@@ -1646,18 +1666,18 @@ function render(){
     ctx.restore();
     /* name + taunt */
     ctx.save(); ctx.textAlign = "center"; ctx.textBaseline = "middle";
-    ctx.font = "bold 12px 'Microsoft YaHei',sans-serif";
-    ctx.fillStyle = boss.frozen > 0 ? stunColor : (boss.rage > 0 ? "#ff8ba0" : "#edbda0");
+    ctx.font = "bold 12px 'Fusion Pixel',monospace";
+    ctx.fillStyle = boss.frozen > 0 ? stunColor : (boss.rage > 0 ? "#ff8ba0" : "#d5d5e8");
     const freezeTag = boss.frozen > 0 ? (isFableStun ? ` [⚡ Fable 压制 ${boss.frozen.toFixed(1)}s]` : (isDeepSeekStun ? ` [🐋 蒸馏压制 ${boss.frozen.toFixed(1)}s]` : ` [❄️ 冰冻 ${boss.frozen.toFixed(1)}s]`)) : "";
     ctx.fillText("ASTRA · 超级大旗舰（已降智）" + freezeTag, boss.x, boss.y - boss.r - 26);
     if (boss.taunt){
-      ctx.font = "12px 'Microsoft YaHei',sans-serif";
+      ctx.font = "12px 'Fusion Pixel',monospace";
       const tw = ctx.measureText(boss.taunt).width + 22;
       const bx = clamp(boss.x, tw/2 + 8, W - tw/2 - 8), by = boss.y - boss.r - 52;
-      ctx.fillStyle = "rgba(30,18,20,.85)";
-      ctx.strokeStyle = "rgba(214,136,118,.4)";
+      ctx.fillStyle = "rgba(9,9,14,.85)";
+      ctx.strokeStyle = "rgba(184,184,208,.4)";
       roundRect(bx - tw/2, by - 14, tw, 24, 12); ctx.fill(); ctx.stroke();
-      ctx.fillStyle = "#f5e7cc"; ctx.fillText(boss.taunt, bx, by + 3);
+      ctx.fillStyle = "#e5e5ef"; ctx.fillText(boss.taunt, bx, by + 3);
     }
     ctx.restore();
   }
@@ -1701,8 +1721,8 @@ function render(){
       const shieldBlink = player.invuln < 0.4 ? (Math.sin(player.invuln * 25) > 0 ? 1 : 0.25) : 1;
       ctx.globalAlpha = shieldBlink * 0.85;
       ctx.rotate(elapsed * 4);
-      ctx.strokeStyle = "#f1c879"; ctx.lineWidth = 3;
-      ctx.shadowColor = "#f1c879"; ctx.shadowBlur = 20;
+      ctx.strokeStyle = "#dde2ef"; ctx.lineWidth = 3;
+      ctx.shadowColor = "#dde2ef"; ctx.shadowBlur = 20;
       ctx.beginPath(); ctx.arc(0, 0, player.r + 14, 0, TAU); ctx.stroke();
       ctx.strokeStyle = "rgba(255,255,255,.65)"; ctx.lineWidth = 1.5;
       ctx.beginPath();
@@ -1723,7 +1743,7 @@ function render(){
         ctx.drawImage(claudeImg, -size/2, -size/2, size, size);
       } else {
         ctx.fillStyle = "#ff8c42";
-        ctx.font = "bold 11px 'Microsoft YaHei',sans-serif";
+        ctx.font = "bold 11px 'Fusion Pixel',monospace";
         ctx.textAlign = "center"; ctx.textBaseline = "middle";
         ctx.fillText("Fable", 0, 1);
       }
@@ -1736,7 +1756,7 @@ function render(){
       pg.addColorStop(0, "#ffffff"); pg.addColorStop(0.55, char.color); pg.addColorStop(1, "rgba(255,255,255,.05)");
       ctx.fillStyle = pg; ctx.beginPath(); ctx.arc(0, 0, player.r, 0, TAU); ctx.fill();
       ctx.shadowBlur = 0; ctx.fillStyle = "#241610";
-      ctx.font = "bold 10px 'Microsoft YaHei',sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.font = "bold 10px 'Fusion Pixel',monospace"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
       ctx.fillText(char.tag, 0, 1);
     }
     ctx.beginPath(); ctx.arc(0, 0, player.r + 5 + Math.sin(elapsed * 5) * 2, 0, TAU); ctx.stroke();
@@ -1753,7 +1773,7 @@ function render(){
   ctx.globalAlpha = 1;
   for (const f of floats){
     ctx.globalAlpha = 1 - f.t / f.life;
-    ctx.fillStyle = f.color; ctx.font = "bold 15px 'Microsoft YaHei',sans-serif"; ctx.textAlign = "center";
+    ctx.fillStyle = f.color; ctx.font = "bold 15px 'Fusion Pixel',monospace"; ctx.textAlign = "center";
     ctx.fillText(f.txt, f.x, f.y);
   }
   ctx.globalAlpha = 1;
@@ -1767,7 +1787,7 @@ function render(){
     ctx.textAlign = "center";
     const py = ARENA.y + 70;
     const pw = Math.min(W - 48, 460), ph = 62;
-    ctx.fillStyle = "rgba(30,18,20,0.88)";
+    ctx.fillStyle = "rgba(9,9,14,0.88)";
     ctx.strokeStyle = currentPhase === 3 ? "rgba(255,93,115,0.8)" : "rgba(255,209,102,0.8)";
     ctx.lineWidth = 2;
     ctx.shadowColor = currentPhase === 3 ? "#ff5d73" : "#ffd166";
@@ -1775,11 +1795,11 @@ function render(){
     roundRect(W/2 - pw/2, py - ph/2, pw, ph, 14);
     ctx.fill(); ctx.stroke();
     ctx.shadowBlur = 0;
-    ctx.font = "bold 17px 'Microsoft YaHei',sans-serif";
+    ctx.font = "bold 17px 'Fusion Pixel',monospace";
     ctx.fillStyle = currentPhase === 3 ? "#ff8ba0" : "#ffd166";
     ctx.fillText(p.txt, W/2, py - 5);
-    ctx.font = "12px 'Microsoft YaHei',sans-serif";
-    ctx.fillStyle = "#d3beaa";
+    ctx.font = "12px 'Fusion Pixel',monospace";
+    ctx.fillStyle = "#b0b0c1";
     ctx.fillText(p.sub, W/2, py + 18);
     ctx.restore();
   }
@@ -1795,7 +1815,7 @@ function render(){
     // Golden divine radial glow
     const bgGrad = ctx.createRadialGradient(W/2, H/2, 40, W/2, H/2, Math.max(W, H)*0.6);
     bgGrad.addColorStop(0, "rgba(255,209,102,0.18)");
-    bgGrad.addColorStop(1, "rgba(24,14,17,0.5)");
+    bgGrad.addColorStop(1, "rgba(5,5,9,0.5)");
     ctx.fillStyle = bgGrad;
     ctx.fillRect(-30, -30, W + 60, H + 60);
 
@@ -1803,7 +1823,7 @@ function render(){
     ctx.translate(W/2, H/2);
     ctx.scale(scale, scale);
     const cw = Math.min(W - 44, 520), ch = 236;
-    ctx.fillStyle = "rgba(30,18,20,0.96)";
+    ctx.fillStyle = "rgba(9,9,14,0.96)";
     ctx.strokeStyle = "rgba(255,209,102,0.9)";
     ctx.lineWidth = 2.5;
     ctx.shadowColor = "#ffd166";
@@ -1825,18 +1845,18 @@ function render(){
 
     // Title
     ctx.textAlign = "center";
-    ctx.font = "bold 18px 'Microsoft YaHei',sans-serif";
+    ctx.font = "bold 18px 'Fusion Pixel',monospace";
     ctx.fillStyle = "#ffd166";
     ctx.fillText("✨ TIBO 降临 · 额度已为你重置！", 0, avatarY + avatarSize/2 + 24);
 
     // Quote
-    ctx.font = "italic bold 15px 'Segoe UI','Microsoft YaHei',sans-serif";
-    ctx.fillStyle = "#f1c879";
+    ctx.font = "italic bold 15px 'Fusion Pixel',monospace";
+    ctx.fillStyle = "#dde2ef";
     ctx.fillText(tp.quote, 0, avatarY + avatarSize/2 + 48);
 
     // Subtext
-    ctx.font = "12px 'Microsoft YaHei',sans-serif";
-    ctx.fillStyle = "#d3beaa";
+    ctx.font = "12px 'Fusion Pixel',monospace";
+    ctx.fillStyle = "#b0b0c1";
     ctx.fillText("OpenAI 核心产品负责人免除了致命伤害，但 5 小时额度重新开始燃烧！", 0, avatarY + avatarSize/2 + 70);
 
     ctx.restore();
@@ -1852,7 +1872,7 @@ function render(){
 
     const bgGrad = ctx.createRadialGradient(W/2, H/2, 40, W/2, H/2, Math.max(W, H)*0.6);
     bgGrad.addColorStop(0, "rgba(255,140,66,0.22)");
-    bgGrad.addColorStop(1, "rgba(24,14,17,0.5)");
+    bgGrad.addColorStop(1, "rgba(5,5,9,0.5)");
     ctx.fillStyle = bgGrad;
     ctx.fillRect(-30, -30, W + 60, H + 60);
 
@@ -1880,15 +1900,15 @@ function render(){
 
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.font = "bold 18px 'Microsoft YaHei',sans-serif";
+    ctx.font = "bold 18px 'Fusion Pixel',monospace";
     ctx.fillStyle = "#ff8c42";
     ctx.fillText("⚡ CLAUDE FABLE 5.1 · 混合推理援军参战！", 0, avatarY + avatarSize/2 + 24);
 
-    ctx.font = "italic bold 13.5px 'Segoe UI','Microsoft YaHei',sans-serif";
+    ctx.font = "italic bold 13.5px 'Fusion Pixel',monospace";
     ctx.fillStyle = "#ffe4cc";
     ctx.fillText(fp.quote, 0, avatarY + avatarSize/2 + 48);
 
-    ctx.font = "12px 'Microsoft YaHei',sans-serif";
+    ctx.font = "12px 'Fusion Pixel',monospace";
     ctx.fillStyle = "#fbcfe8";
     ctx.fillText("Anthropic 混合推理光束 · 全场鹈鹕弹幕已被 Artifacts 格式化消弹！", 0, avatarY + avatarSize/2 + 70);
     ctx.restore();
@@ -1904,14 +1924,14 @@ function render(){
 
     const bgGrad = ctx.createRadialGradient(W/2, H/2, 40, W/2, H/2, Math.max(W, H)*0.6);
     bgGrad.addColorStop(0, "rgba(77,107,254,0.22)");
-    bgGrad.addColorStop(1, "rgba(24,14,17,0.5)");
+    bgGrad.addColorStop(1, "rgba(5,5,9,0.5)");
     ctx.fillStyle = bgGrad;
     ctx.fillRect(-30, -30, W + 60, H + 60);
 
     ctx.translate(W/2, H/2);
     ctx.scale(scale, scale);
     const cw = Math.min(W - 44, 540), ch = 240;
-    ctx.fillStyle = "rgba(30,18,20,0.96)";
+    ctx.fillStyle = "rgba(9,9,14,0.96)";
     ctx.strokeStyle = "rgba(77,107,254,0.9)";
     ctx.lineWidth = 2.5;
     ctx.shadowColor = "#4D6BFE";
@@ -1931,15 +1951,15 @@ function render(){
     }
 
     ctx.textAlign = "center";
-    ctx.font = "bold 18px 'Microsoft YaHei',sans-serif";
+    ctx.font = "bold 18px 'Fusion Pixel',monospace";
     ctx.fillStyle = "#60a5fa";
     ctx.fillText("🐋 DEEPSEEK-V4 · 深度思考开源蒸馏！", 0, avatarY + avatarSize/2 + 24);
 
-    ctx.font = "italic bold 13px 'Segoe UI','Microsoft YaHei',monospace,sans-serif";
+    ctx.font = "italic bold 13px 'Fusion Pixel',monospace";
     ctx.fillStyle = "#93c5fd";
     ctx.fillText(dp.quote, 0, avatarY + avatarSize/2 + 48);
 
-    ctx.font = "12px 'Microsoft YaHei',sans-serif";
+    ctx.font = "12px 'Fusion Pixel',monospace";
     ctx.fillStyle = "#bfdbfe";
     ctx.fillText("深度求索 V4 推理成本暴跌 · 鹈鹕弹幕已全部蒸馏为绿色免费 Token！", 0, avatarY + avatarSize/2 + 72);
     ctx.restore();
@@ -1973,11 +1993,11 @@ function render(){
 
     ctx.save();
     ctx.textAlign = "center";
-    ctx.font = "bold 24px 'Microsoft YaHei',sans-serif";
+    ctx.font = "bold 24px 'Fusion Pixel',monospace";
     ctx.fillStyle = "#ffd166";
     ctx.shadowColor = "#ffd166"; ctx.shadowBlur = 20;
     ctx.fillText("✨ 5 小时额度彻底耗尽 · 白嫖大成功！", W/2, ARENA.y + 110);
-    ctx.font = "bold 14px 'Microsoft YaHei',sans-serif";
+    ctx.font = "bold 14px 'Fusion Pixel',monospace";
     ctx.fillStyle = "#ffffff"; ctx.shadowBlur = 10;
     ctx.fillText("ASTRA 算力全面熔毁 · 正在结算战绩...", W/2, ARENA.y + 142);
     ctx.restore();
@@ -2009,10 +2029,10 @@ function render(){
   }
 
   if (paused){
-    ctx.fillStyle = "rgba(16,13,14,.6)"; ctx.fillRect(-30, -30, W + 60, H + 60);
-    ctx.fillStyle = "#f5e7cc"; ctx.font = "bold 34px 'Microsoft YaHei',sans-serif"; ctx.textAlign = "center";
+    ctx.fillStyle = "rgba(3,3,6,.6)"; ctx.fillRect(-30, -30, W + 60, H + 60);
+    ctx.fillStyle = "#e5e5ef"; ctx.font = "bold 34px 'Fusion Pixel',monospace"; ctx.textAlign = "center";
     ctx.fillText("已 暂 停", W/2, H/2 - 10);
-    ctx.font = "14px 'Microsoft YaHei',sans-serif"; ctx.fillStyle = "#b6a594";
+    ctx.font = "14px 'Fusion Pixel',monospace"; ctx.fillStyle = "#a5a5b4";
     ctx.fillText("按 P / Esc 继续", W/2, H/2 + 26);
   }
   ctx.restore();
