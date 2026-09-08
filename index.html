@@ -110,6 +110,7 @@
   <div id="stats">
     <span>存活 <b id="tAlive">0:00</b></span>
     <span>并发 <b id="tConc">×0</b></span>
+    <span id="statShield" style="display:none">护盾 <b id="tShield" style="color:var(--gold)">×0</b></span>
     <span>擦弹 <b id="tGraze">0</b></span>
   </div>
 </div>
@@ -126,9 +127,9 @@
       它正在你的会话里游荡 —— 躲开它喷射的鹈鹕，<b>把 5 小时额度安全耗尽</b>，一次都别用到它。</div>
     <div class="rules">
       · 额度随时间自然燃烧，<em>约 5 分钟</em>耗尽（0% → 100% 即胜利）<br>
-      · 拾取 <em class="cy">「并发」图标</em>，增加 <em class="cy">+5%</em> 燃烧进度<br>
+      · 拾取道具：<em class="cy">「并发」+5%进度</em>、<em style="color:var(--gold)">「API Key」护盾保命</em>、<em style="color:#80f7ff">「Temp 0」冰冻 Boss 3秒</em>；小心 <em style="color:var(--red)">「幻觉」倒扣额度减速</em>！<br>
       · <em class="cy">擦弹 (Graze)</em> 充能，满 100% 按 <em class="cy">SPACE / 点击按钮</em> 释放<b>「清空上下文」</b>全屏消弹！<br>
-      · 致命一击？有几率触发 <em class="cy">Tibo（OpenAI 负责人）降临</em>：免除暴毙，但 5 小时额度<b>重置回 100%</b>！<br>
+      · 致命一击？有几率触发 <em class="cy">Tibo 降临</em>：免除暴毙，但 5 小时额度<b>重置回 100%</b>！<br>
       · 鼠标 / 触控 / WASD 移动，<em>SPACE</em> 清空上下文，<em>P</em> 暂停，<em>M</em> 静音
     </div>
     <div id="menuBest" class="best-bar" style="display:none"></div>
@@ -271,8 +272,8 @@ const TIBO_QUOTES = [
   "“这次算我的，额度已重置为 100%！”",
   "“Product Update: 所有用户的额度已清空重置。”"
 ];
-const player = {x:0, y:0, r:13, hitR:7, speed:340, invuln:0};
-const boss = {x:0, y:0, vx:0, vy:0, tx:0, ty:0, retarget:0, rot:0, r:58, rage:0, rageWarn:0, nextRage:14, taunt:"", tauntT:0};
+const player = {x:0, y:0, r:13, hitR:7, speed:340, invuln:0, shields:0, slowTimer:0};
+const boss = {x:0, y:0, vx:0, vy:0, tx:0, ty:0, retarget:0, rot:0, r:58, rage:0, rageWarn:0, nextRage:14, taunt:"", tauntT:0, frozen:0};
 let bullets = [], pickups = [], particles = [], floats = [];
 let fireTimer = 1.2, pickupTimer = 3.5;
 
@@ -419,8 +420,7 @@ function startGame(){
   elapsed = 0; progress = 0; grazes = 0; concs = 0; fireCount = 0; dodged = 0;
   clearedCount = 0; energy = 0; currentPhase = 1; phaseAnnounce = null;
   tiboSaves = 0; tiboPopup = null;
-  player.invuln = 0; shockwaves = [];
-  bullets = []; pickups = []; particles = []; floats = [];
+  player.invuln = 0; player.shields = 0; player.slowTimer = 0; boss.frozen = 0; shockwaves = [];
   fireTimer = 1.4; pickupTimer = 3.0; shake = 0;
   player.x = W/2; player.y = ARENA.y + ARENA.h * 0.78;
   mouse.x = player.x; mouse.y = player.y;
@@ -545,8 +545,16 @@ function firePelican(){
     beep(240, 0.08, "square", 0.035, 170);
   }
 }
+function pickPickupType(){
+  const r = Math.random();
+  if (r < 0.52) return "conc";   // Concurrency (+5% quota)
+  if (r < 0.72) return "key";    // API Key (Shield +1)
+  if (r < 0.86) return "temp0";  // Temperature 0 (Boss Freeze 3s)
+  return "hallu";                // Model Hallucination (-4% quota, Slow 2s)
+}
 function spawnPickup(){
   pickups.push({
+    type: pickPickupType(),
     x: rand(ARENA.x + 60, ARENA.x + ARENA.w - 60),
     y: rand(ARENA.y + 60, ARENA.y + ARENA.h - 60),
     t: 0, life: 12, phase: rand(0, TAU)
@@ -591,6 +599,8 @@ function update(dt){
   }
 
   if (player.invuln > 0) player.invuln -= dt;
+  if (player.slowTimer > 0) player.slowTimer -= dt;
+  if (boss.frozen > 0) boss.frozen -= dt;
   energy = Math.min(100, energy + dt * 2.2); // passive trickle
 
   const d = difficulty();
@@ -598,61 +608,65 @@ function update(dt){
   /* --- player --- */
   let kx = (keys.KeyD||keys.ArrowRight?1:0) - (keys.KeyA||keys.ArrowLeft?1:0);
   let ky = (keys.KeyS||keys.ArrowDown?1:0) - (keys.KeyW||keys.ArrowUp?1:0);
+  const curSpeed = player.speed * (player.slowTimer > 0 ? 0.58 : 1);
   if (kx || ky){
     const m = Math.hypot(kx, ky);
-    player.x += kx/m * player.speed * dt;
-    player.y += ky/m * player.speed * dt;
+    player.x += kx/m * curSpeed * dt;
+    player.y += ky/m * curSpeed * dt;
     mouse.x = player.x; mouse.y = player.y;
   } else if (mouse.active){
-    const k = 1 - Math.exp(-14 * dt);
+    const k = 1 - Math.exp((player.slowTimer > 0 ? -7 : -14) * dt);
     player.x += (mouse.x - player.x) * k;
     player.y += (mouse.y - player.y) * k;
   }
   player.x = clamp(player.x, ARENA.x + player.r, ARENA.x + ARENA.w - player.r);
   player.y = clamp(player.y, ARENA.y + player.r, ARENA.y + ARENA.h - player.r);
 
-  /* --- boss wander --- */
-  boss.retarget -= dt;
-  if (boss.retarget <= 0){
-    boss.retarget = rand(1.6, 3.2);
-    boss.tx = rand(ARENA.x + 90, ARENA.x + ARENA.w - 90);
-    boss.ty = rand(ARENA.y + 80, ARENA.y + ARENA.h * 0.7);
-    if (Math.random() < 0.35){ // drift toward player sometimes
-      boss.tx = lerp(boss.tx, player.x, 0.45);
-      boss.ty = lerp(boss.ty, player.y, 0.3);
+  /* --- boss wander & firing --- */
+  if (boss.frozen > 0){
+    boss.vx = 0; boss.vy = 0;
+  } else {
+    boss.retarget -= dt;
+    if (boss.retarget <= 0){
+      boss.retarget = rand(1.6, 3.2);
+      boss.tx = rand(ARENA.x + 90, ARENA.x + ARENA.w - 90);
+      boss.ty = rand(ARENA.y + 80, ARENA.y + ARENA.h * 0.7);
+      if (Math.random() < 0.35){
+        boss.tx = lerp(boss.tx, player.x, 0.45);
+        boss.ty = lerp(boss.ty, player.y, 0.3);
+      }
     }
-  }
-  boss.nextRage -= dt;
-  if (boss.nextRage <= 0 && boss.rage <= 0 && boss.rageWarn <= 0){
-    boss.rageWarn = 0.7; boss.taunt = "降智发作！！"; boss.tauntT = 2.5;
-  }
-  if (boss.rageWarn > 0){
-    boss.rageWarn -= dt;
-    if (boss.rageWarn <= 0){ boss.rage = 3.2; shake = Math.max(shake, 9); beep(120, 0.4, "sawtooth", 0.09, 60); }
-  } else if (boss.rage > 0){
-    boss.rage -= dt;
-    if (boss.rage <= 0) boss.nextRage = rand(16, 24);
-  }
-  const maxSpd = boss.rage > 0 ? 235 : 95 + d * 35;
-  const ang = Math.atan2(boss.ty - boss.y, boss.tx - boss.x);
-  boss.vx += Math.cos(ang) * 260 * dt; boss.vy += Math.sin(ang) * 260 * dt;
-  const sp = Math.hypot(boss.vx, boss.vy);
-  if (sp > maxSpd){ boss.vx *= maxSpd/sp; boss.vy *= maxSpd/sp; }
-  boss.x += boss.vx * dt; boss.y += boss.vy * dt;
-  boss.rot += dt * (boss.rage > 0 ? 2.2 : 0.5);
-  const m = boss.r + 6;
-  if (boss.x < ARENA.x + m){ boss.x = ARENA.x + m; boss.vx = Math.abs(boss.vx); }
-  if (boss.x > ARENA.x + ARENA.w - m){ boss.x = ARENA.x + ARENA.w - m; boss.vx = -Math.abs(boss.vx); }
-  if (boss.y < ARENA.y + m){ boss.y = ARENA.y + m; boss.vy = Math.abs(boss.vy); }
-  if (boss.y > ARENA.y + ARENA.h - m){ boss.y = ARENA.y + ARENA.h - m; boss.vy = -Math.abs(boss.vy); }
-  boss.tauntT -= dt;
-  if (boss.tauntT <= 0){ boss.taunt = TAUNTS[Math.floor(Math.random()*TAUNTS.length)]; boss.tauntT = rand(4.5, 7); }
+    boss.nextRage -= dt;
+    if (boss.nextRage <= 0 && boss.rage <= 0 && boss.rageWarn <= 0){
+      boss.rageWarn = 0.7; boss.taunt = "降智发作！！"; boss.tauntT = 2.5;
+    }
+    if (boss.rageWarn > 0){
+      boss.rageWarn -= dt;
+      if (boss.rageWarn <= 0){ boss.rage = 3.2; shake = Math.max(shake, 9); beep(120, 0.4, "sawtooth", 0.09, 60); }
+    } else if (boss.rage > 0){
+      boss.rage -= dt;
+      if (boss.rage <= 0) boss.nextRage = rand(16, 24);
+    }
+    const maxSpd = boss.rage > 0 ? 235 : 95 + d * 35;
+    const ang = Math.atan2(boss.ty - boss.y, boss.tx - boss.x);
+    boss.vx += Math.cos(ang) * 260 * dt; boss.vy += Math.sin(ang) * 260 * dt;
+    const sp = Math.hypot(boss.vx, boss.vy);
+    if (sp > maxSpd){ boss.vx *= maxSpd/sp; boss.vy *= maxSpd/sp; }
+    boss.x += boss.vx * dt; boss.y += boss.vy * dt;
+    boss.rot += dt * (boss.rage > 0 ? 2.2 : 0.5);
+    const m = boss.r + 6;
+    if (boss.x < ARENA.x + m){ boss.x = ARENA.x + m; boss.vx = Math.abs(boss.vx); }
+    if (boss.x > ARENA.x + ARENA.w - m){ boss.x = ARENA.x + ARENA.w - m; boss.vx = -Math.abs(boss.vx); }
+    if (boss.y < ARENA.y + m){ boss.y = ARENA.y + m; boss.vy = Math.abs(boss.vy); }
+    if (boss.y > ARENA.y + ARENA.h - m){ boss.y = ARENA.y + ARENA.h - m; boss.vy = -Math.abs(boss.vy); }
+    boss.tauntT -= dt;
+    if (boss.tauntT <= 0){ boss.taunt = TAUNTS[Math.floor(Math.random()*TAUNTS.length)]; boss.tauntT = rand(4.5, 7); }
 
-  /* --- firing --- */
-  fireTimer -= dt;
-  if (fireTimer <= 0){
-    firePelican();
-    fireTimer = lerp(1.35, 0.6, d) * (boss.rage > 0 ? 0.5 : 1) * rand(0.9, 1.1);
+    fireTimer -= dt;
+    if (fireTimer <= 0){
+      firePelican();
+      fireTimer = lerp(1.35, 0.6, d) * (boss.rage > 0 ? 0.5 : 1) * rand(0.9, 1.1);
+    }
   }
 
   /* --- pickups --- */
@@ -666,14 +680,35 @@ function update(dt){
     if (p.t > p.life){ pickups.splice(i, 1); continue; }
     if (Math.hypot(p.x - player.x, p.y - player.y) < 26 + player.r){
       pickups.splice(i, 1);
-      concs++;
-      progress = Math.min(1, progress + PICKUP_BONUS);
-      floats.push({x: p.x, y: p.y - 20, txt: "+5% 并发燃烧！", t: 0, life: 1.3, color: "#5ef2ff"});
-      burst(p.x, p.y, "#5ef2ff", 16);
-      beep(660, 0.1, "sine", 0.07, 990); setTimeout(()=>beep(990, 0.12, "sine", 0.05, 1320), 70);
+      if (p.type === "key"){
+        player.shields = Math.min(2, (player.shields || 0) + 1);
+        burst(p.x, p.y, "#ffd166", 18);
+        floats.push({x: p.x, y: p.y - 22, txt: "🔑 API Key：获得护盾 +1！", t: 0, life: 1.6, color: "#ffd166"});
+        beep(587, 0.12, "sine", 0.08); setTimeout(() => beep(880, 0.22, "sine", 0.09), 90);
+      } else if (p.type === "temp0"){
+        boss.frozen = 3.2;
+        boss.vx = boss.vy = 0;
+        for (const b of bullets){ b.vx *= 0.4; b.vy *= 0.4; }
+        burst(p.x, p.y, "#80f7ff", 22);
+        floats.push({x: p.x, y: p.y - 22, txt: "❄️ Temperature 0：模型冰冻 3 秒！", t: 0, life: 2.0, color: "#80f7ff"});
+        beep(1046, 0.15, "triangle", 0.08); setTimeout(() => beep(1318, 0.25, "sine", 0.08), 80);
+      } else if (p.type === "hallu"){
+        progress = Math.max(0, progress - 0.04);
+        player.slowTimer = 2.2;
+        shake = Math.max(shake, 12);
+        burst(p.x, p.y, "#ff5d73", 18);
+        floats.push({x: p.x, y: p.y - 22, txt: "⚠️ 模型幻觉！额度倒退 4% · 减速 2 秒！", t: 0, life: 2.0, color: "#ff5d73"});
+        beep(140, 0.35, "sawtooth", 0.12, 60);
+      } else {
+        concs++;
+        progress = Math.min(1, progress + PICKUP_BONUS);
+        floats.push({x: p.x, y: p.y - 20, txt: "+5% 并发燃烧！", t: 0, life: 1.3, color: "#5ef2ff"});
+        burst(p.x, p.y, "#5ef2ff", 16);
+        beep(660, 0.1, "sine", 0.07, 990); setTimeout(()=>beep(990, 0.12, "sine", 0.05, 1320), 70);
+      }
+      updateHUD(true);
     }
   }
-
   /* --- bullets --- */
   for (let i = bullets.length - 1; i >= 0; i--){
     const b = bullets[i]; b.t += dt;
@@ -685,6 +720,18 @@ function update(dt){
         burst(b.x, b.y, "#5ef2ff", 8);
         bullets.splice(i, 1);
         dodged++;
+        continue;
+      }
+      if (player.shields > 0){
+        player.shields--;
+        player.invuln = 1.3;
+        shake = 16;
+        burst(player.x, player.y, "#ffd166", 24);
+        floats.push({x: player.x, y: player.y - 35, txt: "🛡️ API Key 抵消致命伤害！", t: 0, life: 1.8, color: "#ffd166"});
+        beep(587, 0.15, "square", 0.09, 1174);
+        bullets.splice(i, 1);
+        dodged++;
+        updateHUD(true);
         continue;
       }
       if (Math.random() < tiboChance){
@@ -741,6 +788,12 @@ function updateHUD(force){
   const ready = energy >= 100;
   if (eBar) eBar.classList.toggle("ready", ready);
   if (tb) tb.classList.toggle("ready", ready);
+  const sEl = document.getElementById("statShield");
+  const sVal = document.getElementById("tShield");
+  if (sEl && sVal){
+    sEl.style.display = player.shields > 0 ? "inline" : "none";
+    sVal.textContent = "×" + player.shields;
+  }
   if (!force && hudTick > 0) return;
   hudTick = 6;
   document.getElementById("pct").textContent = (progress * 100).toFixed(1) + "%";
@@ -777,15 +830,59 @@ function render(){
     const blink = p.life - p.t < 3 ? (Math.sin(p.t * 14) > 0 ? 1 : 0.25) : 1;
     const bob = Math.sin(p.t * 3 + p.phase) * 4;
     ctx.save(); ctx.translate(p.x, p.y + bob); ctx.globalAlpha = blink;
-    ctx.shadowColor = "#5ef2ff"; ctx.shadowBlur = 16;
-    ctx.strokeStyle = "rgba(94,242,255,.25)"; ctx.lineWidth = 4;
-    ctx.beginPath(); ctx.arc(0, 0, 15, 0, TAU); ctx.stroke();
-    ctx.strokeStyle = "#5ef2ff"; ctx.lineCap = "round";
-    ctx.save(); ctx.rotate(p.t * 6);
-    ctx.beginPath(); ctx.arc(0, 0, 15, 0, Math.PI * 1.25); ctx.stroke(); ctx.restore();
-    ctx.shadowBlur = 0; ctx.globalAlpha = blink * 0.95;
-    ctx.fillStyle = "#bffbff"; ctx.font = "bold 11px 'Microsoft YaHei',sans-serif";
-    ctx.textAlign = "center"; ctx.fillText("并发", 0, 33);
+
+    if (p.type === "key"){
+      // 🔑 API Key Shield
+      ctx.shadowColor = "#ffd166"; ctx.shadowBlur = 18;
+      ctx.strokeStyle = "rgba(255,209,102,.35)"; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(0, 0, 16, 0, TAU); ctx.stroke();
+      ctx.strokeStyle = "#ffd166"; ctx.fillStyle = "#ffd166"; ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.arc(0, -4, 5, 0, TAU); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0, 1); ctx.lineTo(0, 11);
+      ctx.moveTo(0, 5); ctx.lineTo(4, 5);
+      ctx.moveTo(0, 9); ctx.lineTo(4, 9);
+      ctx.stroke();
+      ctx.shadowBlur = 0; ctx.fillStyle = "#ffe49e";
+      ctx.font = "bold 11px 'Microsoft YaHei',sans-serif"; ctx.textAlign = "center";
+      ctx.fillText("API Key", 0, 33);
+    } else if (p.type === "temp0"){
+      // ❄️ Temperature 0
+      ctx.shadowColor = "#80f7ff"; ctx.shadowBlur = 18;
+      ctx.strokeStyle = "rgba(128,247,255,.35)"; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(0, 0, 16, 0, TAU); ctx.stroke();
+      ctx.save(); ctx.rotate(p.t * 1.5);
+      ctx.strokeStyle = "#80f7ff"; ctx.lineWidth = 2;
+      for (let s = 0; s < 3; s++){
+        ctx.beginPath(); ctx.moveTo(-10, 0); ctx.lineTo(10, 0); ctx.stroke();
+        ctx.rotate(Math.PI / 3);
+      }
+      ctx.restore();
+      ctx.shadowBlur = 0; ctx.fillStyle = "#bffbff";
+      ctx.font = "bold 11px 'Microsoft YaHei',sans-serif"; ctx.textAlign = "center";
+      ctx.fillText("Temp 0", 0, 33);
+    } else if (p.type === "hallu"){
+      // ⚠️ 模型幻觉 (glitch red/purple inverted spinner)
+      ctx.shadowColor = "#ff5d73"; ctx.shadowBlur = 18;
+      ctx.strokeStyle = "rgba(255,93,115,.35)"; ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.arc(0, 0, 15, 0, TAU); ctx.stroke();
+      ctx.strokeStyle = "#ff5d73"; ctx.lineCap = "round";
+      ctx.save(); ctx.rotate(-p.t * 7);
+      ctx.beginPath(); ctx.arc(0, 0, 15, 0, Math.PI * 1.25); ctx.stroke(); ctx.restore();
+      ctx.shadowBlur = 0; ctx.fillStyle = "#ffa2b1";
+      ctx.font = "bold 11px 'Microsoft YaHei',sans-serif"; ctx.textAlign = "center";
+      ctx.fillText("幻觉", 0, 33);
+    } else {
+      // ⚡ 并发 spinner
+      ctx.shadowColor = "#5ef2ff"; ctx.shadowBlur = 16;
+      ctx.strokeStyle = "rgba(94,242,255,.25)"; ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.arc(0, 0, 15, 0, TAU); ctx.stroke();
+      ctx.strokeStyle = "#5ef2ff"; ctx.lineCap = "round";
+      ctx.save(); ctx.rotate(p.t * 6);
+      ctx.beginPath(); ctx.arc(0, 0, 15, 0, Math.PI * 1.25); ctx.stroke(); ctx.restore();
+      ctx.shadowBlur = 0; ctx.globalAlpha = blink * 0.95;
+      ctx.fillStyle = "#bffbff"; ctx.font = "bold 11px 'Microsoft YaHei',sans-serif";
+      ctx.textAlign = "center"; ctx.fillText("并发", 0, 33);
+    }
     ctx.restore();
   }
 
@@ -816,17 +913,22 @@ function render(){
     const pulse = 1 + Math.sin(elapsed * 3) * 0.04 + (boss.rage > 0 ? 0.1 : 0);
     ctx.rotate(Math.sin(boss.rot) * 0.15);
     ctx.globalCompositeOperation = "screen";
-    ctx.shadowColor = boss.rage > 0 ? "#ff5d73" : "#7aa2ff";
-    ctx.shadowBlur = boss.rage > 0 ? 55 : 34;
+    ctx.shadowColor = boss.frozen > 0 ? "#80f7ff" : (boss.rage > 0 ? "#ff5d73" : "#7aa2ff");
+    ctx.shadowBlur = boss.frozen > 0 ? 40 : (boss.rage > 0 ? 55 : 34);
     const bw = boss.r * 2.5 * pulse, bh = bw * (bossImg.height / bossImg.width);
     if (boss.rageWarn > 0 && Math.sin(elapsed * 30) > 0) ctx.globalAlpha = 0.55;
     ctx.drawImage(bossImg, -bw/2, -bh/2, bw, bh);
+    if (boss.frozen > 0){
+      ctx.strokeStyle = "rgba(128,247,255,0.85)"; ctx.lineWidth = 3;
+      ctx.strokeRect(-bw/2 - 4, -bh/2 - 4, bw + 8, bh + 8);
+    }
     ctx.restore();
     /* name + taunt */
     ctx.save(); ctx.textAlign = "center";
     ctx.font = "bold 12px 'Microsoft YaHei',sans-serif";
-    ctx.fillStyle = boss.rage > 0 ? "#ff8ba0" : "#9fc2ff";
-    ctx.fillText("ASTRA · 超级大旗舰（已降智）", boss.x, boss.y - boss.r - 26);
+    ctx.fillStyle = boss.frozen > 0 ? "#80f7ff" : (boss.rage > 0 ? "#ff8ba0" : "#9fc2ff");
+    const freezeTag = boss.frozen > 0 ? ` [❄️ 冰冻 ${boss.frozen.toFixed(1)}s]` : "";
+    ctx.fillText("ASTRA · 超级大旗舰（已降智）" + freezeTag, boss.x, boss.y - boss.r - 26);
     if (boss.taunt){
       ctx.font = "12px 'Microsoft YaHei',sans-serif";
       const tw = ctx.measureText(boss.taunt).width + 22;
@@ -842,9 +944,31 @@ function render(){
   /* player */
   if (state === "playing"){
     ctx.save(); ctx.translate(player.x, player.y);
+    if (player.slowTimer > 0){
+      ctx.save();
+      ctx.strokeStyle = "rgba(255,93,115,0.7)"; ctx.lineWidth = 2;
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath(); ctx.arc(0, 0, player.r + 8, 0, TAU); ctx.stroke();
+      ctx.restore();
+    }
+    if (player.shields > 0){
+      ctx.save();
+      ctx.rotate(elapsed * 2.8);
+      for (let s = 0; s < player.shields; s++){
+        const sang = s * (Math.PI * 2 / player.shields);
+        const sx = Math.cos(sang) * (player.r + 14);
+        const sy = Math.sin(sang) * (player.r + 14);
+        ctx.save(); ctx.translate(sx, sy); ctx.rotate(-elapsed * 2.8);
+        ctx.fillStyle = "#ffd166"; ctx.shadowColor = "#ffd166"; ctx.shadowBlur = 10;
+        ctx.beginPath();
+        ctx.moveTo(0, -6); ctx.lineTo(5, 0); ctx.lineTo(0, 6); ctx.lineTo(-5, 0);
+        ctx.closePath(); ctx.fill();
+        ctx.restore();
+      }
+      ctx.restore();
+    }
     if (player.invuln > 0){
       const shieldBlink = player.invuln < 0.4 ? (Math.sin(player.invuln * 25) > 0 ? 1 : 0.25) : 1;
-      ctx.save();
       ctx.globalAlpha = shieldBlink * 0.85;
       ctx.rotate(elapsed * 4);
       ctx.strokeStyle = "#5ef2ff"; ctx.lineWidth = 3;
@@ -1051,10 +1175,16 @@ window.__game = {
   get state(){ return state; },
   get progress(){ return progress; },
   get energy(){ return energy; },
+  get shields(){ return player.shields; },
+  get bossFrozen(){ return boss.frozen; },
   get tiboSaves(){ return tiboSaves; },
   get tiboPopup(){ return tiboPopup; },
   setProgress(p){ progress = p; },
+  addShield(n = 1){ player.shields = Math.min(2, (player.shields || 0) + n); updateHUD(true); },
+  freezeBoss(sec = 3.0){ boss.frozen = sec; updateHUD(true); },
   addEnergy(v){ energy = Math.min(100, energy + v); updateHUD(true); },
+  spawnType(t){ pickups.push({type: t, x: player.x, y: player.y - 60, t: 0, life: 12, phase: 0}); },
+  spawnBullet(x = player.x, y = player.y){ bullets.push({x, y, vx:0, vy:0, rot:0, spin:0, r:17, hitR:12, grazed:false, t:0}); },
   bomb: triggerClearContext,
   triggerTibo: triggerTiboRescue,
   setTiboChance(c){ tiboChance = c; },
