@@ -657,7 +657,7 @@ function copyResult(){
                tiboLine +
                `🎯 躲过鹈鹕：${dodged} 只\n` +
                `💀 结局：${reason}\n` +
-               `🔗 来试试你的额度能撑多久：https://aitreez.com/astra/`;
+               `🔗 来试试你的额度能撑多久：https://aitreez.com/game/pelican-vs-astra/`;
   if (navigator.clipboard && navigator.clipboard.writeText){
     navigator.clipboard.writeText(text).then(() => showToast()).catch(() => fallbackCopy(text));
   } else {

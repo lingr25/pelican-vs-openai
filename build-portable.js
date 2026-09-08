@@ -8,6 +8,7 @@ const bgmBuf = fs.readFileSync(path.join(root, 'bgm.mp3'));
 const claudeBuf = fs.readFileSync(path.join(root, 'claude_logo.png'));
 const deepseekBuf = fs.readFileSync(path.join(root, 'deepseek_logo.png'));
 const tiboBuf = fs.readFileSync(path.join(root, '177053821.jpg'));
+const faviconBuf = fs.readFileSync(path.join(root, 'favicon.png'));
 
 const bgmDataUri = 'data:audio/mp3;base64,' + bgmBuf.toString('base64');
 const claudeDataUri = 'data:image/png;base64,' + claudeBuf.toString('base64');
@@ -30,6 +31,7 @@ portableHtml = portableHtml.replaceAll('"claude_logo.png"', JSON.stringify(claud
 portableHtml = portableHtml.replaceAll('"deepseek_logo.png"', JSON.stringify(deepseekDataUri));
 portableHtml = portableHtml.replaceAll('"177053821.jpg"', JSON.stringify(tiboDataUri));
 portableHtml = portableHtml.replaceAll('src="claude_logo.png"', 'src="' + claudeDataUri + '"');
+portableHtml = portableHtml.replaceAll('href="favicon.png"', 'href="data:image/png;base64,' + faviconBuf.toString('base64') + '"');
 
 const outPath = path.join(root, 'portable.html');
 fs.writeFileSync(outPath, portableHtml, 'utf8');
