@@ -153,7 +153,8 @@
       · 拾取道具：<em class="cy">「并发」+5%进度</em>、<em style="color:var(--gold)">「API Key」护盾保命</em>、<em style="color:#80f7ff">「Temp 0」冰冻 Boss 3秒</em>；小心 <em style="color:var(--red)">「幻觉」倒扣额度减速</em>！<br>
       · <em class="cy">擦弹 (Graze)</em> 充能，满 100% 按 <em class="cy">SPACE / 点击按钮</em> 释放<b>「清空上下文」</b>全屏消弹！<br>
       · 致命一击？有几率触发 <em class="cy">Tibo 降临</em>：免除暴毙，但 5 小时额度<b>重置回 100%</b>！<br>
-      · 移动操控：鼠标 / 触控 / WASD，<em>SHIFT / 跃迁按钮</em> 闪避冲刺（自带无敌帧），<em>SPACE</em> 清空上下文，<em>P</em> 暂停，<em>M</em> 开关音乐音效
+      · 移动操控：鼠标 / 触控 / WASD，<em>SHIFT / 跃迁按钮</em> 闪避冲刺（自带无敌帧），<em>SPACE</em> 清空上下文，<em>P</em> 暂停，<em>M</em> 开关音乐音效<br>
+      <small style="display:block;margin-top:6px;color:#6b7f9f;font-size:10px">🎵 BGM: "8bit Action Boss Battle" by MintoDog (CC0 Public Domain)</small>
     </div>
     <div class="char-picker">
       <div class="char-picker-title">选择出战角色</div>
@@ -279,65 +280,33 @@ function beep(f0, dur, type = "sine", gain = 0.06, f1 = null){
   }catch(e){}
 }
 
-/* 8-bit chiptune BGM engine */
-const BGM_STEP_TIME = 0.12;
-const BGM_MELODY = [523, 0, 622, 0, 784, 0, 698, 622, 587, 0, 622, 0, 523, 0, 466, 0, 523, 0, 784, 0, 880, 0, 784, 698, 622, 698, 784, 0, 622, 587, 523, 0];
-const BGM_BASS   = [131, 131, 262, 131, 156, 156, 311, 156, 175, 175, 349, 175, 196, 196, 392, 196, 131, 131, 262, 131, 208, 208, 415, 208, 233, 233, 466, 233, 196, 196, 392, 196];
-let bgmInterval = null, bgmStep = 0;
-function playBgmStep(){
-  if (muted || state !== "playing" || paused) return;
-  try {
-    AC = AC || new (window.AudioContext || window.webkitAudioContext)();
-    if (AC.state === "suspended") AC.resume();
-    const now = AC.currentTime;
-    const mFreq = BGM_MELODY[bgmStep % BGM_MELODY.length];
-    if (mFreq > 0){
-      const osc = AC.createOscillator(), g = AC.createGain();
-      osc.type = "square";
-      osc.frequency.setValueAtTime(mFreq, now);
-      g.gain.setValueAtTime(0.026, now);
-      g.gain.exponentialRampToValueAtTime(0.0001, now + BGM_STEP_TIME * 0.88);
-      osc.connect(g).connect(AC.destination);
-      osc.start(now); osc.stop(now + BGM_STEP_TIME * 0.88);
-    }
-    const bFreq = BGM_BASS[bgmStep % BGM_BASS.length];
-    if (bFreq > 0){
-      const bOsc = AC.createOscillator(), bg = AC.createGain();
-      bOsc.type = "triangle";
-      bOsc.frequency.setValueAtTime(bFreq, now);
-      bg.gain.setValueAtTime(0.045, now);
-      bg.gain.exponentialRampToValueAtTime(0.0001, now + BGM_STEP_TIME * 0.92);
-      bOsc.connect(bg).connect(AC.destination);
-      bOsc.start(now); bOsc.stop(now + BGM_STEP_TIME * 0.92);
-    }
-    if (bgmStep % 4 === 0){
-      const kOsc = AC.createOscillator(), kg = AC.createGain();
-      kOsc.type = "sine";
-      kOsc.frequency.setValueAtTime(140, now);
-      kOsc.frequency.exponentialRampToValueAtTime(32, now + 0.08);
-      kg.gain.setValueAtTime(0.065, now);
-      kg.gain.exponentialRampToValueAtTime(0.0001, now + 0.08);
-      kOsc.connect(kg).connect(AC.destination);
-      kOsc.start(now); kOsc.stop(now + 0.08);
-    } else if (bgmStep % 2 === 1){
-      const hOsc = AC.createOscillator(), hg = AC.createGain();
-      hOsc.type = "square";
-      hOsc.frequency.setValueAtTime(1800 + Math.random() * 300, now);
-      hg.gain.setValueAtTime(0.012, now);
-      hg.gain.exponentialRampToValueAtTime(0.0001, now + 0.03);
-      hOsc.connect(hg).connect(AC.destination);
-      hOsc.start(now); hOsc.stop(now + 0.03);
-    }
-  } catch(e){}
-  bgmStep++;
-}
+/* 8-bit Action BGM ("8bit Action Boss Battle" by MintoDog - CC0 Public Domain) */
+const bgmAudio = new Audio("bgm.mp3");
+bgmAudio.loop = true;
+bgmAudio.volume = 0.36;
+bgmAudio.preload = "auto";
+
 function startBGM(){
-  if (bgmInterval) clearInterval(bgmInterval);
-  bgmStep = 0;
-  bgmInterval = setInterval(playBgmStep, BGM_STEP_TIME * 1000);
+  if (muted) return;
+  try {
+    bgmAudio.playbackRate = 1.0;
+    bgmAudio.currentTime = 0;
+    const p = bgmAudio.play();
+    if (p && p.catch) p.catch(() => {});
+  } catch(e){}
 }
 function stopBGM(){
-  if (bgmInterval){ clearInterval(bgmInterval); bgmInterval = null; }
+  try { bgmAudio.pause(); } catch(e){}
+}
+function pauseBGM(){
+  try { bgmAudio.pause(); } catch(e){}
+}
+function resumeBGM(){
+  if (muted || state !== "playing") return;
+  try {
+    const p = bgmAudio.play();
+    if (p && p.catch) p.catch(() => {});
+  } catch(e){}
 }
 /* ================= game state ================= */
 const PASSIVE_TIME = 300;     // seconds to burn 0%->100% with no pickups
@@ -504,8 +473,16 @@ const mouse = {x:0, y:0, active:false};
 window.addEventListener("keydown", e => {
   keys[e.code] = true;
   if (["ArrowUp","ArrowDown","ArrowLeft","ArrowRight","Space"].includes(e.code)) e.preventDefault();
-  if (e.code === "KeyM") muted = !muted;
-  if ((e.code === "KeyP" || e.code === "Escape") && state === "playing") paused = !paused;
+  if (e.code === "KeyM"){
+    muted = !muted;
+    if (muted) bgmAudio.pause();
+    else if (state === "playing" && !paused) bgmAudio.play().catch(() => {});
+  }
+  if ((e.code === "KeyP" || e.code === "Escape") && state === "playing"){
+    paused = !paused;
+    if (paused) bgmAudio.pause();
+    else if (!muted) bgmAudio.play().catch(() => {});
+  }
   if (e.code === "Space"){
     if (state === "menu") startGame();
     else if (state === "playing") triggerClearContext();
@@ -581,6 +558,7 @@ function triggerTiboRescue(){
   tiboSaves++;
   progress = 0;              // Quota reset back to 100% remaining (progress = 0)
   currentPhase = 1;
+  try { bgmAudio.playbackRate = 1.0; } catch(e){}
   phaseAnnounce = null;
   shake = 22;
   player.invuln = 2.6;       // 2.6s of invulnerability
@@ -829,6 +807,7 @@ function update(dt){
     boss.tauntT = 4.5;
   } else if (currentPhase === 2 && progress >= 0.70){
     currentPhase = 3;
+    try { bgmAudio.playbackRate = 1.15; } catch(e){}
     phaseAnnounce = {txt: "🚨 阶段 3：算力全面熔毁！", sub: "429 鹈鹕海啸来袭 · 保持清醒！", t: 0, life: 3.6};
     shake = 22;
     beep(220, 0.4, "sawtooth", 0.12, 110);
