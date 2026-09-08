@@ -51,9 +51,11 @@
   .touch-dash{position:fixed;right:106px;bottom:26px;width:64px;height:64px;border-radius:50%;
     border:2px solid rgba(94,242,255,.25);background:rgba(10,18,36,.88);color:#6f86ad;
     font-size:11px;font-weight:700;cursor:pointer;z-index:15;
-    display:flex;align-items:center;justify-content:center;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
     user-select:none;touch-action:manipulation;transition:transform .12s,box-shadow .2s;
     box-shadow:0 6px 20px rgba(0,0,0,.5);backdrop-filter:blur(6px)}
+  .touch-dash .dash-icon{font-size:13px;line-height:1}
+  .touch-dash #dashCdTxt{font-variant-numeric:tabular-nums;font-size:11px;line-height:1}
   .touch-dash.ready{border-color:var(--cyan);color:#031018;background:linear-gradient(180deg,#8be9ff,#39c6e8);box-shadow:0 0 18px rgba(94,242,255,.7)}
   .touch-dash:active{transform:scale(.92)}
   @keyframes pulse-bomb{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
@@ -132,7 +134,8 @@
   </div>
 </div>
 <button id="touchDash" class="touch-dash hide" title="量子跃迁 (Shift)">
-  <span>⚡ 跃迁</span>
+  <span class="dash-icon">⚡</span>
+  <span id="dashCdTxt">跃迁</span>
 </button>
 <button id="touchBomb" class="touch-bomb hide" title="清空上下文 (SPACE / 双击)">
   <span>🧹 清空<br>上下文</span>
@@ -1102,7 +1105,12 @@ function updateHUD(force){
   if (eBar) eBar.classList.toggle("ready", ready);
   if (tb) tb.classList.toggle("ready", ready);
   const td = document.getElementById("touchDash");
-  if (td) td.classList.toggle("ready", player.dashCd <= 0);
+  const dTxt = document.getElementById("dashCdTxt");
+  if (td){
+    const ready = player.dashCd <= 0;
+    td.classList.toggle("ready", ready);
+    if (dTxt) dTxt.textContent = ready ? "跃迁" : player.dashCd.toFixed(1) + "s";
+  }
   const sEl = document.getElementById("statShield");
   const sVal = document.getElementById("tShield");
   if (sEl && sVal){
