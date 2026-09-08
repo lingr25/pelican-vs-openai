@@ -1,0 +1,4 @@
+屏幕截图 *.png
+*.tmp
+.DS_Store
+Thumbs.db
