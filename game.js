@@ -74,9 +74,19 @@ function resize(){
   cvs.style.width = W + "px"; cvs.style.height = H + "px";
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   ARENA = {x: 24, y: HUD_H + 18, w: W - 48, h: H - HUD_H - 42};
+  updateBossDimensions();
   pointer.ready = false; bgParallax.x = bgParallax.y = bgParallax.tx = bgParallax.ty = 0;
   buildStars();
   buildSpaceBackdrop();
+}
+function isMobileView(){ return W <= 720; }
+function updateBossDimensions(){
+  const m = isMobileView();
+  boss.r = m ? 38 : 58;
+  if (boss.laser){
+    boss.laser.width = m ? 18 : 28;
+    boss.laser.hitR = m ? 9 : 14;
+  }
 }
 window.addEventListener("resize", resize);
 
@@ -159,61 +169,71 @@ const CHARACTERS = {
     id: "prompt",
     name: "Prompt 工程师",
     icon: "👔",
-    color: "#dde2ef",
-    tag: "提词",
-    desc: "<b>大招流</b>：擦弹充能更快，清屏击退更远。均衡万金油。",
-    speed: 340,
+    color: "#ffd166",
+    tag: "越狱",
+    desc: "<b>越狱反噬</b>：充能获取 +50%，清屏释放金色反噬光束轰击 Astra 削减 5% 额度。",
+    speed: 345,
     hitR: 7,
     initShields: 0,
     maxShields: 2,
-    dashCd: 3.6,
+    dashCd: 3.2,
     dashInvuln: 0.18,
-    grazeCharge: 20,
-    bombPush: -460,
+    grazeCharge: 28,
+    pickupEnergy: 22,
+    passiveEnergy: 4.8,
+    bombPush: -520,
     freezeDur: 3.2,
     concBonus: 0.05,
     halluPenalty: 0.04,
-    pickupR: 26
+    pickupR: 28,
+    isPrompt: true
   },
   jensen: {
     id: "jensen",
     name: "皮衣老黄",
     icon: "🧥",
     color: "#ffd166",
-    tag: "老黄",
-    desc: "<b>算力教皇</b>：自带 1 层护盾，冰冻长达 5 秒，并发收益 +30%。",
+    tag: "算力",
+    desc: "<b>算力教皇</b>：自带 1 层护盾，模型冰冻长达 5 秒，并发收益 +30%。",
     speed: 330,
     hitR: 7,
     initShields: 1,
     maxShields: 3,
     dashCd: 3.8,
     dashInvuln: 0.18,
-    grazeCharge: 14,
+    grazeCharge: 18,
+    pickupEnergy: 15,
+    passiveEnergy: 4.5,
     bombPush: -380,
     freezeDur: 5.0,
     concBonus: 0.065,
     halluPenalty: 0.04,
-    pickupR: 26
+    pickupR: 28
   },
   pm: {
     id: "pm",
     name: "红温产品经理",
     icon: "☕",
     color: "#ff5d73",
-    tag: "红温",
-    desc: "<b>高敏刺客</b>：移速极快 (+21%)，闪避冷却只要 2.2 秒。",
-    speed: 410,
-    hitR: 8,
+    tag: "需求",
+    desc: "<b>二段迭代</b>：拥有 2 次闪避充能，跃迁留下「加急需求」残影吸引 Boss 集火。",
+    speed: 350,
+    hitR: 7.5,
     initShields: 0,
     maxShields: 2,
-    dashCd: 2.2,
-    dashInvuln: 0.20,
-    grazeCharge: 14,
+    dashCd: 2.5,
+    maxDashCharges: 2,
+    dashCharges: 2,
+    dashInvuln: 0.22,
+    grazeCharge: 18,
+    pickupEnergy: 15,
+    passiveEnergy: 4.5,
     bombPush: -380,
     freezeDur: 3.2,
     concBonus: 0.05,
-    halluPenalty: 0.08,
-    pickupR: 32
+    halluPenalty: 0.06,
+    pickupR: 30,
+    isPM: true
   },
   anthropic: {
     id: "anthropic",
@@ -221,14 +241,16 @@ const CHARACTERS = {
     icon: "📜",
     color: "#ff8c42",
     tag: "Fable",
-    desc: "<b>混合推理</b>：免疫「模型幻觉」并转化为额度，闪避留下思维链减速场。",
+    desc: "<b>混合推理</b>：免疫幻觉转化额度，闪避生成减速场。",
     speed: 355,
     hitR: 7,
     initShields: 0,
     maxShields: 2,
     dashCd: 3.2,
     dashInvuln: 0.22,
-    grazeCharge: 16,
+    grazeCharge: 20,
+    pickupEnergy: 15,
+    passiveEnergy: 4.5,
     bombPush: -420,
     freezeDur: 3.5,
     concBonus: 0.05,
@@ -269,6 +291,7 @@ let tiboSaves = 0;
 let tiboPopup = null;         // {t, life, quote}
 let tiboChance = 0.38;        // 38% probability of Tibo rescue on lethal hit
 let thinkingZones = [];       // {x, y, r, t, life}
+let pmDecoys = [];            // {x, y, t, life}
 let fableBeam = null;         // {x, w, t, life}
 let fablePopup = null;        // {t, life, quote}
 let deepseekPopup = null;     // {t, life, quote}
@@ -283,7 +306,7 @@ const TIBO_QUOTES = [
   "“这次算我的，额度已重置为 100%！”",
   "“Product Update: 所有用户的额度已清空重置。”"
 ];
-const player = {x:0, y:0, r:13, hitR:7, speed:340, invuln:0, shields:0, maxShields:2, slowTimer:0, dashCd:0, dashT:0, dashVx:0, dashVy:0, ghosts:[]};
+const player = {x:0, y:0, r:13, hitR:7, speed:340, invuln:0, shields:0, maxShields:2, slowTimer:0, dashCd:0, dashCharges:1, maxDashCharges:1, dashRecharge:0, dashT:0, dashVx:0, dashVy:0, ghosts:[], vx:0, vy:0};
 const boss = {
   x:0, y:0, vx:0, vy:0, tx:0, ty:0, retarget:0, rot:0, r:58, rage:0, rageWarn:0, nextRage:14, taunt:"", tauntT:0, frozen:0,
   laser: { state: "idle", timer: 0, warnDur: 1.25, fireDur: 1.1, ang: 0, sweepRate: 0, width: 28, hitR: 14 },
@@ -391,8 +414,13 @@ function touch(e){
 
 /* ================= flow ================= */
 function triggerDash(){
-  if (state !== "playing" || paused || player.dashCd > 0) return;
-  player.dashCd = char.dashCd;
+  if (state !== "playing" || paused) return;
+  if ((player.dashCharges ?? 1) <= 0) return;
+  player.dashCharges = (player.dashCharges ?? 1) - 1;
+  if (player.dashRecharge <= 0){
+    player.dashRecharge = char.dashCd;
+  }
+  player.dashCd = player.dashCharges > 0 ? 0 : player.dashRecharge;
   player.dashT = 0.13;
   player.invuln = Math.max(player.invuln, char.dashInvuln);
   let dx = (keys.KeyD||keys.ArrowRight?1:0) - (keys.KeyA||keys.ArrowLeft?1:0);
@@ -400,8 +428,15 @@ function triggerDash(){
   if (!dx && !dy){
     const mx = mouse.x - player.x, my = mouse.y - player.y;
     const m = Math.hypot(mx, my);
-    if (m > 12){ dx = mx/m; dy = my/m; }
-    else { dx = 0; dy = -1; }
+    if (m > 12){
+      dx = mx/m; dy = my/m;
+    } else if (player.vx || player.vy){
+      const vm = Math.hypot(player.vx, player.vy);
+      if (vm > 20){ dx = player.vx / vm; dy = player.vy / vm; }
+      else { dx = 0; dy = -1; }
+    } else {
+      dx = 0; dy = -1;
+    }
   } else {
     const m = Math.hypot(dx, dy);
     dx /= m; dy /= m;
@@ -412,7 +447,15 @@ function triggerDash(){
   shake = Math.max(shake, 7);
   burst(player.x, player.y, char.color, 12);
   beep(380, 0.12, "sine", 0.08, 920);
-  if (char.isAnthropic){
+  if (char.id === "pm"){
+    pmDecoys.push({
+      x: player.x,
+      y: player.y,
+      t: 0,
+      life: 1.6
+    });
+    floats.push({x: player.x, y: player.y - 30, txt: "☕ 加急需求残影！吸引火力！", t: 0, life: 1.4, color: "#ff5d73"});
+  } else if (char.isAnthropic){
     thinkingZones.push({
       x: player.x,
       y: player.y,
@@ -430,7 +473,7 @@ function triggerFableBeam(){
   fablePopup = {
     t: 0,
     life: 3.2,
-    quote: "“根据最新宪法与混合推理评估：当前战局鹈鹕密度严重超标，已启动 Artifacts 实时消弹协议。”"
+    quote: "“宪法评估：鹈鹕密度超标，启动 Artifacts 消弹！”"
   };
   boss.frozen = 4.0;
   boss.stunType = "fable";
@@ -519,7 +562,16 @@ function triggerClearContext(){
   shockwaves.push({x: player.x, y: player.y, r: 12, maxR: Math.max(W, H) * 1.15, t: 0, life: 0.65});
   const killed = bullets.length;
   for (const b of bullets){
-    burst(b.x, b.y, "#dde2ef", 8);
+    burst(b.x, b.y, char.id === "prompt" ? "#ffd166" : "#dde2ef", 8);
+    if (char.id === "prompt"){
+      particles.push({
+        x: b.x, y: b.y,
+        vx: (boss.x - b.x) * 1.8 + rand(-40, 40),
+        vy: (boss.y - b.y) * 1.8 + rand(-40, 40),
+        t: 0, life: 0.65,
+        color: "#ffd166", size: rand(3.5, 6)
+      });
+    }
     dodged++;
   }
   bullets = [];
@@ -531,11 +583,23 @@ function triggerClearContext(){
     boss.laser.timer = 0;
     boss.laserCooldown = rand(8, 12);
   }
-  boss.taunt = "上下文已被清空？！";
-  boss.tauntT = 3.2;
-  floats.push({x: player.x, y: player.y - 35, txt: `🧹 清空上下文！消弹 ×${killed}`, t: 0, life: 1.8, color: "#dde2ef"});
-  beep(880, 0.12, "sawtooth", 0.08, 220);
-  setTimeout(() => beep(440, 0.35, "sine", 0.10, 110), 90);
+  if (char.id === "prompt"){
+    progress = Math.min(1, progress + 0.05);
+    burst(boss.x, boss.y, "#ffd166", 28);
+    boss.frozen = Math.max(boss.frozen, 1.8);
+    boss.taunt = "Prompt 越狱？！我的系统提示词被覆盖了！";
+    boss.tauntT = 3.5;
+    floats.push({x: player.x, y: player.y - 35, txt: `💥 JAILBREAK 越狱反噬！消弹 ×${killed} · 额度燃烧 +5%！`, t: 0, life: 2.2, color: "#ffd166"});
+    beep(587, 0.15, "triangle", 0.09, 1174);
+    setTimeout(() => beep(880, 0.2, "sine", 0.08, 1760), 90);
+    if (progress >= 1){ progress = 1; updateHUD(true); winGame(); return; }
+  } else {
+    boss.taunt = "上下文已被清空？！";
+    boss.tauntT = 3.2;
+    floats.push({x: player.x, y: player.y - 35, txt: `🧹 清空上下文！消弹 ×${killed}`, t: 0, life: 1.8, color: "#dde2ef"});
+    beep(880, 0.12, "sawtooth", 0.08, 220);
+    setTimeout(() => beep(440, 0.35, "sine", 0.10, 110), 90);
+  }
   updateHUD(true);
 }
 
@@ -589,16 +653,20 @@ function startGame(){
   elapsed = 0; progress = 0; grazes = 0; concs = 0; fireCount = 0; dodged = 0;
   clearedCount = 0; energy = 0; currentPhase = 1; phaseAnnounce = null;
   tiboSaves = 0; tiboPopup = null;
-  thinkingZones = []; fableBeam = null; fablePopup = null; deepseekPopup = null; freeTokens = [];
+  thinkingZones = []; pmDecoys = []; fableBeam = null; fablePopup = null; deepseekPopup = null; freeTokens = [];
   bullets = []; pickups = []; particles = []; floats = []; shockwaves = [];
   fireTimer = 1.5; pickupTimer = 4.0;
   player.speed = char.speed;
-  player.hitR = char.hitR;
+  player.hitR = isMobileView() ? Math.max(5, char.hitR - 1.5) : char.hitR;
   player.shields = char.initShields;
   player.invuln = 1.2;
   player.slowTimer = 0; boss.frozen = 0; boss.stunType = null;
+  player.maxDashCharges = char.maxDashCharges || 1;
+  player.dashCharges = player.maxDashCharges;
+  player.dashRecharge = 0;
   player.dashCd = 0; player.dashT = 0; player.ghosts = [];
-  boss.laser = { state: "idle", timer: 0, warnDur: 1.25, fireDur: 1.1, ang: 0, sweepRate: 0, width: 28, hitR: 14 };
+  updateBossDimensions();
+  boss.laser = { state: "idle", timer: 0, warnDur: 1.25, fireDur: 1.1, ang: 0, sweepRate: 0, width: isMobileView() ? 18 : 28, hitR: isMobileView() ? 9 : 14 };
   boss.laserCooldown = 9.0;
   startBGM();
   player.x = W/2; player.y = ARENA.y + ARENA.h * 0.78;
@@ -781,23 +849,34 @@ function finishWin(){
 }
 
 /* ================= spawning ================= */
+function getBossTarget(){
+  for (let i = pmDecoys.length - 1; i >= 0; i--){
+    if (pmDecoys[i].t < pmDecoys[i].life) return pmDecoys[i];
+  }
+  return player;
+}
 function difficulty(){ return clamp(elapsed / 150, 0, 1); }
 function firePelican(){
   const d = difficulty();
   fireCount++;
+  const mobile = isMobileView();
   const phaseMult = currentPhase === 2 ? 1.15 : (currentPhase === 3 ? 1.30 : 1);
-  const speed = lerp(175, 300, d) * (boss.rage > 0 ? 1.25 : 1) * phaseMult;
+  const speed = lerp(mobile ? 160 : 175, mobile ? 270 : 300, d) * (boss.rage > 0 ? 1.25 : 1) * phaseMult;
+  const bulletR = mobile ? 12 : 17;
+  const bulletHitR = mobile ? 8 : 12;
   const spawn = (ang, spd) => {
     bullets.push({
       x: boss.x + Math.cos(ang) * (boss.r + 8), y: boss.y + Math.sin(ang) * (boss.r + 8),
       vx: Math.cos(ang) * spd, vy: Math.sin(ang) * spd,
-      rot: rand(0, TAU), spin: rand(-4, 4), r: 17, hitR: 12, grazed: false, t: 0
+      rot: rand(0, TAU), spin: rand(-4, 4), r: bulletR, hitR: bulletHitR, grazed: false, t: 0
     });
   };
   // Strawberry double spiral barrage in Phase 3
   if (currentPhase === 3 && fireCount % 6 === 2){
     const arms = 2;
-    const spiralCount = 8;
+    const spiralCount = mobile ? 6 : 8;
+    const strawR = mobile ? 11 : 16;
+    const strawHitR = mobile ? 7.5 : 11;
     const baseRot = boss.rot * 2;
     for (let arm = 0; arm < arms; arm++){
       const armAngle = baseRot + arm * Math.PI;
@@ -809,7 +888,7 @@ function firePelican(){
           y: boss.y + Math.sin(a) * (boss.r + 8),
           vx: Math.cos(a) * spd,
           vy: Math.sin(a) * spd,
-          rot: a, spin: rand(-3, 3), r: 16, hitR: 11,
+          rot: a, spin: rand(-3, 3), r: strawR, hitR: strawHitR,
           isStrawberry: true,
           grazed: false, t: 0
         });
@@ -821,13 +900,14 @@ function firePelican(){
   }
   const ringInterval = currentPhase === 3 ? 4 : 5;
   if (fireCount % ringInterval === (ringInterval - 1)){  // radial ring
-    const n = 9 + Math.round(d * 6) + (currentPhase === 3 ? 3 : 0), off = rand(0, TAU);
+    const n = (mobile ? 7 : 9) + Math.round(d * (mobile ? 4 : 6)) + (currentPhase === 3 ? 2 : 0), off = rand(0, TAU);
     for (let i = 0; i < n; i++) spawn(off + i/n * TAU, speed * 0.82);
     shake = Math.max(shake, 7);
     beep(160, 0.18, "square", 0.06, 90);
   } else {                                              // aimed spread
-    const n = 1 + Math.round(d * 2) + (currentPhase >= 2 ? 1 : 0);
-    const base = Math.atan2(player.y - boss.y, player.x - boss.x);
+    const n = 1 + Math.round(d * (mobile ? 1.5 : 2)) + (currentPhase >= 2 ? 1 : 0);
+    const target = getBossTarget();
+    const base = Math.atan2(target.y - boss.y, target.x - boss.x);
     for (let i = 0; i < n; i++){
       const off = n === 1 ? 0 : (i/(n-1) - 0.5) * 0.34;
       spawn(base + off + rand(-0.03, 0.03), speed);
@@ -918,12 +998,24 @@ function update(dt){
   if (player.invuln > 0) player.invuln -= dt;
   if (player.slowTimer > 0) player.slowTimer -= dt;
   if (boss.frozen > 0) boss.frozen -= dt;
-  energy = Math.min(100, energy + dt * 2.2); // passive trickle
+  energy = Math.min(100, energy + dt * (char.passiveEnergy || 4.5)); // passive trickle
 
   const d = difficulty();
 
   /* --- player --- */
-  if (player.dashCd > 0) player.dashCd -= dt;
+  const prevPx = player.x, prevPy = player.y;
+  if ((player.dashCharges ?? 1) < (player.maxDashCharges || 1)){
+    player.dashRecharge -= dt;
+    if (player.dashRecharge <= 0){
+      player.dashCharges = (player.dashCharges ?? 0) + 1;
+      if (player.dashCharges < (player.maxDashCharges || 1)){
+        player.dashRecharge = char.dashCd;
+      } else {
+        player.dashRecharge = 0;
+      }
+    }
+  }
+  player.dashCd = (player.dashCharges ?? 1) > 0 ? 0 : player.dashRecharge;
   if (player.dashT > 0){
     player.dashT -= dt;
     player.x += player.dashVx * dt;
@@ -952,7 +1044,10 @@ function update(dt){
   }
   player.x = clamp(player.x, ARENA.x + player.r, ARENA.x + ARENA.w - player.r);
   player.y = clamp(player.y, ARENA.y + player.r, ARENA.y + ARENA.h - player.r);
-
+  if (dt > 0.0001){
+    player.vx = (player.x - prevPx) / dt;
+    player.vy = (player.y - prevPy) / dt;
+  }
   /* --- player & boss physical collision (bounce/repel) --- */
   const pbDist = Math.hypot(player.x - boss.x, player.y - boss.y);
   const minSep = boss.r + player.r + 2;
@@ -1016,8 +1111,10 @@ function update(dt){
       boss.retarget -= dt;
       if (boss.retarget <= 0){
         boss.retarget = rand(1.6, 3.2);
-        boss.tx = rand(ARENA.x + 90, ARENA.x + ARENA.w - 90);
-        boss.ty = rand(ARENA.y + 80, ARENA.y + ARENA.h * 0.7);
+        const padX = isMobileView() ? 48 : 90;
+        const padY = isMobileView() ? 45 : 80;
+        boss.tx = rand(ARENA.x + padX, ARENA.x + ARENA.w - padX);
+        boss.ty = rand(ARENA.y + padY, ARENA.y + ARENA.h * 0.68);
         if (Math.random() < 0.35){
           boss.tx = lerp(boss.tx, player.x, 0.45);
           boss.ty = lerp(boss.ty, player.y, 0.3);
@@ -1066,14 +1163,16 @@ function update(dt){
       if (boss.laserCooldown <= 0){
         boss.laser.state = "warn";
         boss.laser.timer = boss.laser.warnDur;
-        boss.laser.ang = Math.atan2(player.y - boss.y, player.x - boss.x);
+        const target = getBossTarget();
+        boss.laser.ang = Math.atan2(target.y - boss.y, target.x - boss.x);
         boss.taunt = "思考中…正在规划高维激光扫射！";
         boss.tauntT = 2.4;
         beep(740, 0.2, "sawtooth", 0.06, 1200);
       }
     } else if (boss.laser.state === "warn"){
       boss.laser.timer -= dt;
-      const targetAng = Math.atan2(player.y - boss.y, player.x - boss.x);
+      const target = getBossTarget();
+      const targetAng = Math.atan2(target.y - boss.y, target.x - boss.x);
       let diff = targetAng - boss.laser.ang;
       while (diff < -Math.PI) diff += TAU;
       while (diff > Math.PI) diff -= TAU;
@@ -1215,6 +1314,11 @@ function update(dt){
         beep(660, 0.1, "sine", 0.07, 990); setTimeout(()=>beep(990, 0.12, "sine", 0.05, 1320), 70);
         if (progress >= 1){ progress = 1; updateHUD(true); winGame(); return; }
       }
+      if (p.type !== "hallu" || char.id === "anthropic"){
+        const eGain = char.pickupEnergy || 15;
+        energy = Math.min(100, energy + eGain);
+        floats.push({x: p.x + rand(-15, 15), y: p.y - 38, txt: `⚡ 大招充能 +${eGain}%`, t: 0, life: 0.9, color: "#ffd166"});
+      }
       updateHUD(true);
     }
   }
@@ -1222,6 +1326,16 @@ function update(dt){
   for (let i = thinkingZones.length - 1; i >= 0; i--){
     const tz = thinkingZones[i]; tz.t += dt;
     if (tz.t > tz.life) thinkingZones.splice(i, 1);
+  }
+  /* --- pm decoys --- */
+  for (let i = pmDecoys.length - 1; i >= 0; i--){
+    const dec = pmDecoys[i];
+    dec.t += dt;
+    if (dec.t > dec.life){
+      burst(dec.x, dec.y, "#ff5d73", 10);
+      floats.push({x: dec.x, y: dec.y - 20, txt: "“需求延期了”", t: 0, life: 1.0, color: "#a2a2a5"});
+      pmDecoys.splice(i, 1);
+    }
   }
   if (fableBeam){
     fableBeam.t += dt;
@@ -1348,9 +1462,17 @@ function updateHUD(force){
   const td = document.getElementById("touchDash");
   const dTxt = document.getElementById("dashCdTxt");
   if (td){
-    const ready = player.dashCd <= 0;
+    const ready = (player.dashCharges ?? 1) > 0;
     td.classList.toggle("ready", ready);
-    if (dTxt) dTxt.textContent = ready ? "跃迁" : player.dashCd.toFixed(1) + "s";
+    if (dTxt){
+      if ((player.maxDashCharges || 1) > 1){
+        dTxt.textContent = (player.dashCharges > 0)
+          ? `跃迁 ×${player.dashCharges}`
+          : `${(player.dashRecharge || player.dashCd).toFixed(1)}s`;
+      } else {
+        dTxt.textContent = ready ? "跃迁" : player.dashCd.toFixed(1) + "s";
+      }
+    }
   }
   const sEl = document.getElementById("statShield");
   const sVal = document.getElementById("tShield");
@@ -1723,6 +1845,33 @@ function render(){
     ctx.beginPath(); ctx.arc(0, 0, player.r, 0, TAU); ctx.fill();
     ctx.restore();
   }
+  /* PM Decoy Phantoms */
+  for (const dec of pmDecoys){
+    const pFrac = dec.t / dec.life;
+    const alpha = Math.max(0, 1 - pFrac * 0.75);
+    const pulse = 1 + Math.sin(dec.t * 16) * 0.12;
+    ctx.save();
+    ctx.translate(dec.x, dec.y);
+    ctx.globalAlpha = alpha;
+    ctx.shadowColor = "#ff5d73";
+    ctx.shadowBlur = 18;
+    ctx.strokeStyle = "rgba(255,93,115,0.9)";
+    ctx.lineWidth = 2.2;
+    ctx.beginPath();
+    ctx.arc(0, 0, (player.r + 6) * pulse, 0, TAU);
+    ctx.stroke();
+
+    ctx.font = "20px sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("☕", 0, 0);
+
+    ctx.font = "bold 11px 'Fusion Pixel',monospace";
+    ctx.fillStyle = "#ff5d73";
+    ctx.shadowBlur = 10;
+    ctx.fillText("🚨 加急需求", 0, -player.r - 14);
+    ctx.restore();
+  }
   /* player */
   if (state === "playing"){
     ctx.save(); ctx.translate(player.x, player.y);
@@ -1933,17 +2082,17 @@ function render(){
 
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.font = "bold 18px 'Fusion Pixel',monospace";
+    ctx.font = isMobileView() ? "bold 15px 'Fusion Pixel',monospace" : "bold 18px 'Fusion Pixel',monospace";
     ctx.fillStyle = "#ff8c42";
-    ctx.fillText("⚡ CLAUDE FABLE 5.1 · 混合推理援军参战！", 0, avatarY + avatarSize/2 + 24);
+    ctx.fillText("⚡ CLAUDE FABLE · 混合推理参战！", 0, avatarY + avatarSize/2 + 24);
 
-    ctx.font = "italic bold 13.5px 'Fusion Pixel',monospace";
+    ctx.font = isMobileView() ? "italic bold 12px 'Fusion Pixel',monospace" : "italic bold 13.5px 'Fusion Pixel',monospace";
     ctx.fillStyle = "#ffe4cc";
     ctx.fillText(fp.quote, 0, avatarY + avatarSize/2 + 48);
 
-    ctx.font = "12px 'Fusion Pixel',monospace";
+    ctx.font = isMobileView() ? "11px 'Fusion Pixel',monospace" : "12px 'Fusion Pixel',monospace";
     ctx.fillStyle = "#fbcfe8";
-    ctx.fillText("Anthropic 混合推理光束 · 全场鹈鹕弹幕已被 Artifacts 格式化消弹！", 0, avatarY + avatarSize/2 + 70);
+    ctx.fillText("混合推理光束 · 全场弹幕已格式化清屏！", 0, avatarY + avatarSize/2 + 70);
     ctx.restore();
   }
 
@@ -2114,10 +2263,23 @@ for (const button of document.querySelectorAll(".return-menu")){
 }
 document.getElementById("btnCopyOver").onclick = copyResult;
 document.getElementById("btnCopyWin").onclick = copyResult;
+function bindTapAction(el, fn){
+  if (!el) return;
+  const handler = (e) => {
+    if (e){
+      if (e.cancelable) e.preventDefault();
+      e.stopPropagation();
+    }
+    fn();
+  };
+  el.addEventListener("pointerdown", handler, {passive: false});
+  el.addEventListener("touchstart", handler, {passive: false});
+  el.addEventListener("click", handler);
+}
 const tbEl = document.getElementById("touchBomb");
-if (tbEl) tbEl.onclick = triggerClearContext;
+bindTapAction(tbEl, triggerClearContext);
 const tdEl = document.getElementById("touchDash");
-if (tdEl) tdEl.onclick = triggerDash;
+bindTapAction(tdEl, triggerDash);
 document.querySelectorAll(".char-tab").forEach(tab => {
   tab.onclick = () => selectCharacter(tab.getAttribute("data-char"));
 });
@@ -2147,10 +2309,11 @@ window.__game = {
   get fableBeam(){ return fableBeam; },
   get fablePopup(){ return fablePopup; },
   get thinkingZones(){ return thinkingZones; },
+  get pmDecoys(){ return pmDecoys; },
   get bossStealing(){ return !!boss.stealingTarget; },
   get bossTaunt(){ return boss.taunt; },
   get pickups(){ return pickups; },
-  spawnBullet(x = player.x, y = player.y){ bullets.push({x, y, vx:0, vy:0, rot:0, spin:0, r:17, hitR:12, grazed:false, t:0}); },
+  spawnBullet(x = player.x, y = player.y){ const m = isMobileView(); bullets.push({x, y, vx:0, vy:0, rot:0, spin:0, r: m ? 12 : 17, hitR: m ? 8 : 12, grazed:false, t:0}); },
   bomb: triggerClearContext,
   triggerTibo: triggerTiboRescue,
   dash: triggerDash,

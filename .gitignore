@@ -5,3 +5,4 @@ Thumbs.db
 *.zip
 node_modules/
 test-results/
+*vsOpenAI.html
